@@ -10,6 +10,8 @@ open build/NitSync.app
 open build/NitSync.app --args --calibrate        # 启动后直接进入亮度校准
 open build/NitSync.app --args --calibrate-color  # 启动后直接进入颜色校准
 open build/NitSync.app --args --calibrate-grey   # 直接开始灰阶（没法发按键时用来截图检查）
+open build/NitSync.app --args --calibrate-primaries  # 直接开始原色
+open build/NitSync.app --args --reset-color      # 清除颜色校准、换回原描述文件、删文件，然后退出
 ```
 
 版本号用 1.0.0 格式（语义化版本），写在 `Info.plist` 的 `CFBundleShortVersionString`，发布时打 `v1.0.0` 这样的 git 标签；`CFBundleVersion` 是构建号，每次发布加 1。
@@ -32,7 +34,11 @@ open build/NitSync.app --args --calibrate-grey   # 直接开始灰阶（没法�
 | `CalibrationOverlay+Color.swift` | 颜色模式的流程和文字：白色（W）或三档灰（G）、二选一提问、题间熄灭、结果确认、纯黑背景 |
 | `ColorCalibration.swift` | `Staircase`（单轴阶梯法）、`ColorSession`（两轴随机穿插、随机起点）、`ColorCalibration`（白色和各档灰分别多轮平均，最多 5 轮；白色存在 `runs`，灰阶存在 `greyRuns`，旧数据只有 `runs` 也能读） |
 | `ColorMath.swift` | `WhiteShift`（mired 冷暖 + Duv 绿紫）→ 白点 xy → 按外接屏 ICC 原色矩阵解出通道增益 → 色调表系数；`table(points:)` 按各档结果生成整条色调表 |
-| `ColorCorrector.swift` | 把整条色调表写进外接屏（`CGSetDisplayTransferByTable`），按各档结果缓存，每 2 s 检查是否被别人改掉 |
+| `ColorCorrector.swift` | 由各档结果生成色调表（按显示器缓存）、算 HDR 亮度补偿系数；只在校准预览时直接写色调表，结束时 `CGDisplayRestoreColorSyncSettings` 让系统从描述文件重新载入 |
+| `DisplayProfiles.swift` | 把校准写进描述文件：复制出厂描述文件，改名、写 `vcgt`、改原色坐标，设为显示器的当前用户级自定义描述文件；记录原来的条目，移除时写回 |
+| `ICCProfile.swift` | 最小的 ICC 读写：保留文件头，重排标签表；`XYZ `、`vcgt`（16 位表）、`desc`、`mluc` 标签构造 |
+| `PrimaryCalibration.swift` | 原色：`Primary`、`PrimaryShift`（u'v' 里的色相、饱和度）、`PrimaryMath`（按想要的显示变化反向移动描述文件原色，并重新缩放保持白点）、`PrimarySession`（6 个阶梯穿插） |
+| `CalibrationOverlay+Primaries.swift` | 原色的流程和画面：外屏色块用候选描述文件换算出的设备值、按屏幕当前色彩空间直接画出（不切描述文件） |
 | `Icon/AppIcon.icon` | Icon Composer 文档：`fill` 为 `automatic`（背景由系统按外观提供），两组图层（笔记本在上，显示器在下），每组的 `layers` 里排在前面的在上层。SVG 图层画布 1024×1024，整体用 `translate(29 32)` 居中。太阳是自己画的：SF Symbols 的许可不允许用在应用图标里 |
 | `Icon/build-icon.sh` | `actool` 编译出 `Resources/Assets.car` 和 `AppIcon.icns`（都已提交），再用 Icon Composer 自带的 `ictool` 导出浅色、深色预览图。`ictool` 在 `Icon Composer.app/Contents/Executables/`，`xcrun` 找不到；渲染外观可选 Default、Dark、TintedLight、TintedDark、ClearLight、ClearDark |
 
@@ -49,6 +55,8 @@ open build/NitSync.app --args --calibrate-grey   # 直接开始灰阶（没法�
 - **`DisplayServicesSetBrightnessSmooth(id, delta)`**：第二个参数是增量，不是目标值（亮度键就是这么调的）。
 
 - **色调表**：`CGSetDisplayTransferByTable` 在外接屏开着 HDR 时同样生效（用户目测确认过）。截图拿到的是色调表处理之前的画面，看不出效果。色调表归设置它的进程所有，进程退出后系统自动恢复 ColorSync 设置。
+- **自定义描述文件的层级**：`ColorSyncDeviceSetCustomProfiles` 写「所有用户」级需要管理员权限，普通进程写会返回成功但不生效。系统设置选描述文件写的是「当前用户」级。把当前用户级设成 `kCFNull` 会清掉这一级原有的条目（包括系统设置写的那条），所以移除时要把记录的原条目显式写回，不能清空。设备信息里的 `CustomProfiles` 立刻反映变化；`CGDisplayCopyColorSpace` / `NSScreen.colorSpace` 要等进程处理完事件才更新，验证是否生效看硬件色调表最可靠。
+- **`vcgt` 在 HDR 下会被载入**：描述文件切换后约 0.3 s，硬件色调表就等于它的 `vcgt`（读回验证过），切回原描述文件后复原。描述文件的原色坐标在 HDR 下同样影响显示（用户目测确认：绿原色写偏后整屏偏紫红）。
 - **显示器配置文件**：两块屏的 ICC 都是系统生成的 v2 配置文件（内屏来自出厂数据，外接屏来自 EDID），白点都是 D65，`vcgt` 是恒等。`rXYZ` 等原色是相对 D50 的，要用 Bradford 变换回配置文件自己的白点（D65）再用。
 
 ## 颜色校准
@@ -64,6 +72,8 @@ open build/NitSync.app --args --calibrate-grey   # 直接开始灰阶（没法�
 - 稳定性：单轮里题目都集中在结果附近，自相矛盾的回答太少，分不出稳和不稳（模拟里噪声很大的观察者也有 95% 以上被判为稳定）。所以改为跨轮比较：和之前平均差超过 8 mired 或 Duv 0.0025 就提示。模拟：稳定观察者 1% 被提示，噪声大或常按错键的 19–75%。
 - 模拟结果（观察者单次判断噪声 σ，「看不出」区间 ±1σ）：σ 4 mired 时一轮误差 RMS 约 2.2 mired，3 轮平均 1.2；σ 8 时约 3.9 和 2.2。一轮约 18–23 题。
 - 题间白块变黑（不是灰）：色调表把黑映射成黑，所以换颜色时看不到变化。颜色在变黑后 0.1 s 才换，避免白块上闪一帧新颜色。
+- 保存位置：所有颜色校正都写进描述文件，NitSync 平时不写色调表，也不再定时检查。启动和重新连接显示器时，如果有校准但从没装过描述文件（例如从旧版本升级），会自动安装；装过又被换掉的，视为用户在系统设置里改的，不再装回。每次安装用新文件名（带时间戳），旧文件删除，避免系统用缓存的旧内容。
+- 原色：描述文件声称的原色往一边移，色彩管理显示出来的颜色往另一边移，所以想让显示往哪边走，就把声称的原色往反方向移，再重新缩放三个原色让它们的和仍是原来的白。测试色是 sRGB 原色（在两块屏的色域内）。用出厂原色当作「真实」原色验算过：方向正确，实际移动量是要求的 55–87%（sRGB 原色在色域内部，移动打了折扣，由阶梯法自行补偿），方向间串扰不超过约 15%，白点不动。参数：起点 ±0.012，步长 0.008，最小 0.001（u'v'）。
 
 ## 跟随算法（SyncEngine）
 
@@ -91,5 +101,6 @@ DDC 读写可以用 `DDC.swift` + `EDID.swift` 加一个小 `main.swift` 单独�
 - 只处理能通过 DDC 发现的外接屏，HDR 路径也是（发现阶段依赖 DDC）。
 - SDR 路径的渐变受 DDC 速度限制，只在 HDR 模式下实测过平滑效果。
 - 多台外接屏的匹配、切换和校准没在实机上测过。
-- 颜色校准的答题流程（题间灰屏、结果页、保存、多轮平均）没法自动化测试（发不了按键事件），只有算法做过模拟验证，界面靠截图检查。
+- 颜色校准的答题流程（题间熄灭、结果页、保存、多轮平均）没法自动化测试（发不了按键事件），只有算法做过模拟验证，界面靠截图检查。用户实际走过一轮白色。
+- 原色预览是把候选描述文件换算出的设备值按屏幕当前色彩空间画出来，假设窗口合成时这一步不再转换；没有仪器，无法直接测量。
 - 系统更新可能改动以上任何私有接口或注册表属性。

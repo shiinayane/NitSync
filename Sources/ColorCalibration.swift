@@ -16,6 +16,11 @@ struct ColorCalibration: Codable, Equatable {
         var date: Date
     }
 
+    struct PrimaryRun: Codable, Equatable {
+        var shifts: [Primary: PrimaryShift]
+        var date: Date
+    }
+
     /// Levels that can be matched, as sRGB grey values. 0.12 is the calibration screens' old
     /// dark-grey surround, where the difference was first noticed.
     static let levels: [Double] = [1, 0.5, 0.25, 0.12]
@@ -26,6 +31,8 @@ struct ColorCalibration: Codable, Equatable {
     private(set) var runs: [Run] = []
     /// Grey levels' runs, keyed by `key(_:)`.
     private(set) var greyRuns: [String: [Run]] = [:]
+    /// Primaries runs.
+    private(set) var primaryRuns: [PrimaryRun] = []
 
     init() {}
 
@@ -33,9 +40,44 @@ struct ColorCalibration: Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         runs = try c.decodeIfPresent([Run].self, forKey: .runs) ?? []
         greyRuns = try c.decodeIfPresent([String: [Run]].self, forKey: .greyRuns) ?? [:]
+        primaryRuns = try c.decodeIfPresent([PrimaryRun].self, forKey: .primaryRuns) ?? []
     }
 
-    private enum CodingKeys: String, CodingKey { case runs, greyRuns }
+    private enum CodingKeys: String, CodingKey { case runs, greyRuns, primaryRuns }
+
+    /// Primaries' correction: mean of their runs (nil when none).
+    var primaries: [Primary: PrimaryShift]? { Self.mean(primaryRuns) }
+
+    func primaries(adding run: PrimaryRun) -> [Primary: PrimaryShift] {
+        Self.mean(Array((primaryRuns + [run]).suffix(Self.maxRuns)))!
+    }
+
+    func disagrees(with run: PrimaryRun) -> Bool {
+        guard let mean = primaries else { return false }
+        return Primary.allCases.contains { p in
+            let a = run.shifts[p] ?? PrimaryShift(), b = mean[p] ?? PrimaryShift()
+            return abs(a.hue - b.hue) > 0.008 || abs(a.saturation - b.saturation) > 0.008
+        }
+    }
+
+    mutating func add(_ run: PrimaryRun) {
+        primaryRuns.append(run)
+        if primaryRuns.count > Self.maxRuns { primaryRuns.removeFirst(primaryRuns.count - Self.maxRuns) }
+    }
+
+    private static func mean(_ runs: [PrimaryRun]) -> [Primary: PrimaryShift]? {
+        guard !runs.isEmpty else { return nil }
+        let n = Double(runs.count)
+        var out: [Primary: PrimaryShift] = [:]
+        for p in Primary.allCases {
+            let s = runs.map { $0.shifts[p] ?? PrimaryShift() }
+            out[p] = PrimaryShift(hue: s.map(\.hue).reduce(0, +) / n, saturation: s.map(\.saturation).reduce(0, +) / n)
+        }
+        return out
+    }
+
+    /// Whether anything at all is calibrated.
+    var isEmpty: Bool { points.isEmpty && primaryRuns.isEmpty }
 
     static func key(_ level: Double) -> String { String(format: "%.2f", level) }
 

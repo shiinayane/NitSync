@@ -40,12 +40,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--calibrate") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.calibration.show(.brightness) }
         }
+        // `--reset-color` removes all colour calibration and NitSync's display profiles, then quits.
+        if CommandLine.arguments.contains("--reset-color") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                self?.engine.resetAllColor()
+                NSApp.terminate(nil)
+            }
+        }
         // `--calibrate-color` does the same for colour calibration; `--calibrate-grey` also
         // starts the grey levels (for checking that screen without a keyboard).
-        if CommandLine.arguments.contains("--calibrate-color") || CommandLine.arguments.contains("--calibrate-grey") {
+        if ["--calibrate-color", "--calibrate-grey", "--calibrate-primaries"].contains(where: CommandLine.arguments.contains) {
             let grey = CommandLine.arguments.contains("--calibrate-grey")
+            let primaries = CommandLine.arguments.contains("--calibrate-primaries")
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
                 self?.calibration.show(.color)
+                if primaries { self?.calibration.startPrimarySession() }
                 if grey {
                     let levels = ColorCalibration.greyLevels
                     self?.calibration.startColorSession(level: levels[0], then: Array(levels.dropFirst()))

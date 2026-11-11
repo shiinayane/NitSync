@@ -156,7 +156,13 @@ enum ColorMath {
     /// The display's RGB → XYZ matrix (columns are the primaries, white has Y = 1), from the
     /// colourants in its ICC profile, adapted from the profile's D50 back to its own white.
     static func primaries(of id: CGDirectDisplayID) -> double3x3? {
-        guard let data = CGDisplayCopyColorSpace(id).copyICCData() as Data?, data.count > 132 else { return nil }
+        // The factory profile, not the active one, which may be NitSync's own.
+        guard let data = DisplayProfiles.factoryProfileData(id) ?? CGDisplayCopyColorSpace(id).copyICCData() as Data? else { return nil }
+        return primaries(icc: data)
+    }
+
+    static func primaries(icc data: Data) -> double3x3? {
+        guard data.count > 132 else { return nil }
         let bytes = [UInt8](data)
         func u32(_ o: Int) -> UInt32 { bytes[o..<o + 4].reduce(0) { $0 << 8 | UInt32($1) } }
         func s15(_ o: Int) -> Double { Double(Int32(bitPattern: u32(o))) / 65536 }

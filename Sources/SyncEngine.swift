@@ -152,9 +152,11 @@ final class SyncEngine {
     // MARK: - Colour
 
     private let colors = ColorCorrector()
-    private var lastColorCheck = Date.distantPast
+    /// Monitors whose NitSync profile is the one in use (checked with the modes, every 0.5 s).
+    private var profileActive: Set<String> = []
 
-    /// White-point correction per monitor key, matched by eye against the built-in panel.
+    /// Colour correction per monitor key, matched by eye against the built-in panel.
+    /// Saved corrections live in each display's ICC profile (`DisplayProfiles`).
     private var colorCalibrations: [String: ColorCalibration] {
         didSet {
             if let data = try? JSONEncoder().encode(colorCalibrations) { defaults.set(data, forKey: "colorCalibrations") }
@@ -164,7 +166,50 @@ final class SyncEngine {
 
     func colorCalibration(for key: String) -> ColorCalibration { colorCalibrations[key] ?? ColorCalibration() }
 
-    func setColorCalibration(_ calibration: ColorCalibration, for key: String) { colorCalibrations[key] = calibration }
+    func setColorCalibration(_ calibration: ColorCalibration, for key: String) {
+        colorCalibrations[key] = calibration
+        installProfile(for: key)
+    }
+
+    /// Writes the monitor's correction into its profile, or puts its original profile back
+    /// when there is nothing left to correct.
+    private func installProfile(for key: String) {
+        guard let (id, _) = Screens.monitorKeys(monitors).first(where: { $0.value == key }),
+              let monitor = monitors.first(where: { $0.key == key }) else { return }
+        let calibration = colorCalibration(for: key)
+        let table = colors.table(calibration.points, on: id).map { ($0.r, $0.g, $0.b) }
+        let colourants = calibration.primaries.flatMap { shifts in
+            DisplayProfiles.factoryProfileData(id).flatMap(PrimaryMath.colourants(ofICC:)).map { PrimaryMath.colourants($0, shifts: shifts) }
+        }
+        guard table != nil || colourants != nil,
+              let profile = DisplayProfiles.makeProfile(for: id, name: "\(monitor.name) (NitSync)", table: table, colourants: colourants)
+        else {
+            DisplayProfiles.remove(key: key, on: id)
+            return
+        }
+        DisplayProfiles.install(profile, key: key, on: id)
+    }
+
+    /// Removes every colour calibration and puts the displays' original profiles back
+    /// (`--reset-color`, e.g. before deleting NitSync).
+    func resetAllColor() {
+        let keys = Screens.monitorKeys(monitors)
+        for key in Set(colorCalibrations.keys).union((defaults.dictionary(forKey: "originalDisplayProfiles") ?? [:]).keys) {
+            colorCalibrations[key] = nil
+            DisplayProfiles.remove(key: key, on: keys.first { $0.value == key }?.key)
+        }
+    }
+
+    /// At launch and after reconnecting: install profiles for corrections saved before they
+    /// were kept in profiles. A monitor whose NitSync profile was installed once and is no
+    /// longer in use was switched in System Settings; that choice is left alone.
+    private func installMissingProfiles() {
+        let installedBefore = defaults.dictionary(forKey: "originalDisplayProfiles") ?? [:]
+        for (id, key) in Screens.monitorKeys(monitors)
+        where !colorCalibration(for: key).isEmpty && installedBefore[key] == nil && !DisplayProfiles.isInstalled(id) {
+            installProfile(for: key)
+        }
+    }
 
     /// While colour calibration runs: the shift to show at one grey level of one monitor,
     /// in place of its saved one.
@@ -172,19 +217,28 @@ final class SyncEngine {
         didSet { applyColor() }
     }
 
+    /// Updates the HDR compensation and, while calibration previews a change, shows it.
     private func applyColor() {
+        let keys = Screens.monitorKeys(monitors)
         var curves = colorCalibrations.mapValues(\.points)
         if let p = colorPreview {
             var points = curves[p.key] ?? []
             points.removeAll { $0.level == p.level }
             points.append(ColorPoint(level: p.level, shift: p.shift))
             curves[p.key] = points
+            if let id = keys.first(where: { $0.value == p.key })?.key { colors.preview(points, on: id) }
+        } else {
+            colors.endPreview()
         }
-        colors.apply(curves, keys: Screens.monitorKeys(monitors))
+        colors.update(curves, keys: keys)
     }
 
-    /// How much brighter the HDR level must be to make up for the colour correction.
-    private func colorCompensation(_ key: String) -> Double { 1 / (colors.luminanceFactor[key] ?? 1) }
+    /// How much brighter the HDR level must be to make up for the colour correction: only
+    /// while that correction is on screen (its profile in use, or a calibration preview).
+    private func colorCompensation(_ key: String) -> Double {
+        guard profileActive.contains(key) || colorPreview?.key == key else { return 1 }
+        return 1 / (colors.luminanceFactor[key] ?? 1)
+    }
 
     /// True when an HDR monitor cannot get as bright as the built-in panel once its colour
     /// correction is applied (its level is at the top of the range).
@@ -269,6 +323,7 @@ final class SyncEngine {
             self.forceNextWrite = true
             self.colors.reset()
             self.applyColor()
+            self.installMissingProfiles()
             self.onUpdate?()
         }
     }
@@ -332,6 +387,7 @@ final class SyncEngine {
             hdrFramebuffers[id] = nil
         }
         hdrNits = nits
+        profileActive = Set(Screens.monitorKeys(monitors).filter { DisplayProfiles.isInstalled($0.key) }.map(\.value))
     }
 
     private func tick(reschedule: Bool = true) {
@@ -344,11 +400,6 @@ final class SyncEngine {
             lastModeCheck = now
             updateModes()
             if enabled, !manualOverride { correctHDR(now: now) }
-        }
-        // Put the colour tables back if a ColorSync reload or another app replaced them.
-        if now.timeIntervalSince(lastColorCheck) >= 2 {
-            lastColorCheck = now
-            applyColor()
         }
 
         var easing = false

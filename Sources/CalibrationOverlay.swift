@@ -1,4 +1,5 @@
 import AppKit
+import simd
 
 /// Full-screen calibration: every screen gets the same dark surround with a white patch of the
 /// same physical size, so the user only has to compare the patches and press keys.
@@ -27,6 +28,15 @@ final class CalibrationOverlay {
     var session: ColorSession?
     /// A finished run waiting to be saved or thrown away.
     var pendingRun: ColorCalibration.Run?
+    /// Primaries run in progress, or finished and waiting to be saved.
+    var primarySession: PrimarySession?
+    var pendingPrimary: ColorCalibration.PrimaryRun?
+    /// For drawing the primaries preview: the selected display's factory profile and
+    /// colourants, and the colour space its screen currently uses.
+    var primaryBase: (data: Data, colourants: double3x3, active: CGColorSpace)?
+    /// After saving primaries: showing them drawn normally, to check the installed result.
+    var primaryCheck = false
+
     /// Grey level of the run in progress or waiting to be saved (1 is white).
     var sessionLevel: Double = 1
     /// Grey levels still to run after this one.
@@ -298,10 +308,14 @@ final class CalibrationOverlay {
             return
         }
         builtinPanel?.patchGray = nil
+        builtinPanel?.patchColor = nil
+        builtinPanel?.stripes = nil
         builtinPanel?.innerGray = nil
         builtinPanel?.surround = PatchView.defaultSurround
         externalPanels.values.forEach {
             $0.patchGray = nil
+            $0.patchColor = nil
+            $0.stripes = nil
             $0.innerGray = nil
             $0.surround = PatchView.defaultSurround
         }
@@ -387,6 +401,10 @@ final class PatchView: NSView {
     var dimmed = false { didSet { if dimmed != oldValue { needsDisplay = true } } }
     /// Overrides the patch with this sRGB grey (colour mode's grey levels and dark pauses).
     var patchGray: CGFloat? { didSet { if patchGray != oldValue { needsDisplay = true } } }
+    /// Fills the patch with this colour (primaries).
+    var patchColor: NSColor? { didSet { if patchColor != oldValue { needsDisplay = true } } }
+    /// Fills the patch with these colours as vertical stripes (checking saved primaries).
+    var stripes: [NSColor]? { didSet { if stripes != oldValue { needsDisplay = true } } }
     /// Draws a square of this sRGB grey inside the patch, which stays white around it.
     var innerGray: CGFloat? { didSet { if innerGray != oldValue { needsDisplay = true } } }
     static let defaultSurround: CGFloat = 0.12
@@ -422,8 +440,16 @@ final class PatchView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         NSColor(white: surround, alpha: 1).setFill()
         bounds.fill()
-        (patchGray.map { NSColor(srgbRed: $0, green: $0, blue: $0, alpha: 1) } ?? (dimmed ? NSColor(white: 0.3, alpha: 1) : NSColor.white)).setFill()
+        (patchGray.map { NSColor(srgbRed: $0, green: $0, blue: $0, alpha: 1) } ?? patchColor
+            ?? (dimmed ? NSColor(white: 0.3, alpha: 1) : NSColor.white)).setFill()
         patchRect.fill()
+        if let stripes, patchGray == nil {
+            let w = patchRect.width / CGFloat(stripes.count)
+            for (i, c) in stripes.enumerated() {
+                c.setFill()
+                NSRect(x: patchRect.minX + CGFloat(i) * w, y: patchRect.minY, width: w, height: patchRect.height).fill()
+            }
+        }
         if let innerGray {
             NSColor(srgbRed: innerGray, green: innerGray, blue: innerGray, alpha: 1).setFill()
             patchRect.insetBy(dx: patchSide * 0.22, dy: patchSide * 0.22).fill()

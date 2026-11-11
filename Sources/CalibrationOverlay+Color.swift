@@ -35,6 +35,7 @@ extension CalibrationOverlay {
 
     /// Drops any run in progress and puts the saved correction back on screen.
     func endColorSession() {
+        endPrimarySession()
         session = nil
         pendingRun = nil
         levelQueue = []
@@ -57,6 +58,9 @@ extension CalibrationOverlay {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.blankDuration) { [weak self] in
             guard let self, self.blankToken == token, self.isShowing else { return }
+            // Write the preview again while still dark: if a profile was just installed (save
+            // and continue to the next grey), its table may have loaded over the first write.
+            if let key = self.selectedKey, let s = self.session { self.engine?.colorPreview = (key, self.sessionLevel, s.shown) }
             self.blanking = false
             self.render()
         }
@@ -122,6 +126,7 @@ extension CalibrationOverlay {
             selectNext()
             return true
         }
+        if primarySession != nil || pendingPrimary != nil || primaryCheck { return handlePrimary(event) }
         if session != nil {
             switch event.keyCode {
             case 123: answer(.positive)                            // ← warmer / greener
@@ -148,6 +153,7 @@ extension CalibrationOverlay {
             case "g":
                 let greys = ColorCalibration.greyLevels
                 startColorSession(level: greys[0], then: Array(greys.dropFirst()))
+            case "p": startPrimarySession()
             default: return false
             }
         }
@@ -158,6 +164,16 @@ extension CalibrationOverlay {
 
     func renderColor() {
         guard let engine else { return }
+        if primarySession != nil || pendingPrimary != nil || primaryCheck {
+            renderPrimary()
+            return
+        }
+        builtinPanel?.patchColor = nil
+        builtinPanel?.stripes = nil
+        externalPanels.values.forEach {
+            $0.patchColor = nil
+            $0.stripes = nil
+        }
         let m = selected
         // Black when dark, not grey: a table change scales black to black, so nothing shifts.
         // A grey level shows as a grey square inside a white frame: each screen's own white is
@@ -206,7 +222,7 @@ extension CalibrationOverlay {
                 } else {
                     lines.append(summary(saved) + (saved.points.isEmpty ? "" : sdrNote(m)))
                 }
-                lines.append("W 测白色（约 1 分钟）  ·  G 测灰阶（\(ColorCalibration.greyLevels.count) 档，约 3 分钟）  ·  ⌫ 清除颜色校准  ·  Esc 完成" + tab)
+                lines.append("W 测白色（约 1 分钟）  ·  G 测灰阶（\(ColorCalibration.greyLevels.count) 档，约 4 分钟）  ·  P 测原色（约 3 分钟）  ·  ⌫ 清除颜色校准  ·  Esc 完成" + tab)
             }
         } else {
             lines.append("没有找到支持 DDC/CI 的外接显示器。")
@@ -253,13 +269,14 @@ extension CalibrationOverlay {
 
     /// One line per level: what is saved, or that it isn't measured yet.
     private func summary(_ saved: ColorCalibration) -> String {
-        guard !saved.points.isEmpty else { return "还没有颜色校准。先测白色，再测灰阶。" }
+        guard !saved.isEmpty else { return "还没有颜色校准。建议顺序：白色、灰阶、原色。" }
         let rows = ColorCalibration.levels.map { level -> String in
             let runs = saved.runs(at: level).count
             guard let shift = saved.shift(at: level) else { return "\(levelName(level))：未测" }
             return "\(levelName(level))：\(runs) 轮，\(describe(shift, grey: level < 1))"
         }
-        return rows.joined(separator: "\n") + "\n换个时间再测一轮，平均后会更准。"
+        let primaries = saved.primaries.map { "原色：\(saved.primaryRuns.count) 轮，\(describe($0))" } ?? "原色：未测"
+        return (rows + [primaries]).joined(separator: "\n") + "\n换个时间再测一轮，平均后会更准。"
     }
 
     /// The correction in words, e.g. "调暖约 300 K，往紫红方向一点".
