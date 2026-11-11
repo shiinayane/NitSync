@@ -149,6 +149,55 @@ final class SyncEngine {
 
     func setCalibration(_ calibration: Calibration, for key: String) { calibrations[key] = calibration }
 
+    // MARK: - Colour
+
+    private let colors = ColorCorrector()
+    private var lastColorCheck = Date.distantPast
+
+    /// White-point correction per monitor key, matched by eye against the built-in panel.
+    private var colorCalibrations: [String: ColorCalibration] {
+        didSet {
+            if let data = try? JSONEncoder().encode(colorCalibrations) { defaults.set(data, forKey: "colorCalibrations") }
+            applyColor()
+        }
+    }
+
+    func colorCalibration(for key: String) -> ColorCalibration { colorCalibrations[key] ?? ColorCalibration() }
+
+    func setColorCalibration(_ calibration: ColorCalibration, for key: String) { colorCalibrations[key] = calibration }
+
+    /// While colour calibration runs: the shift to show at one grey level of one monitor,
+    /// in place of its saved one.
+    var colorPreview: (key: String, level: Double, shift: WhiteShift)? {
+        didSet { applyColor() }
+    }
+
+    private func applyColor() {
+        var curves = colorCalibrations.mapValues(\.points)
+        if let p = colorPreview {
+            var points = curves[p.key] ?? []
+            points.removeAll { $0.level == p.level }
+            points.append(ColorPoint(level: p.level, shift: p.shift))
+            curves[p.key] = points
+        }
+        colors.apply(curves, keys: Screens.monitorKeys(monitors))
+    }
+
+    /// How much brighter the HDR level must be to make up for the colour correction.
+    private func colorCompensation(_ key: String) -> Double { 1 / (colors.luminanceFactor[key] ?? 1) }
+
+    /// True when an HDR monitor cannot get as bright as the built-in panel once its colour
+    /// correction is applied (its level is at the top of the range).
+    func colorCompensationFallsShort(_ key: String) -> Bool {
+        guard isHDR(key), let target = nits, let shown = effectiveHDRNits(key) else { return false }
+        return shown < target * 0.95
+    }
+
+    /// SDR white an HDR monitor shows, as seen through its colour correction.
+    func effectiveHDRNits(_ key: String) -> Double? {
+        hdrNits[key].map { $0 / colorCompensation(key) }
+    }
+
     var onUpdate: (() -> Void)?
 
     init() {
@@ -158,6 +207,12 @@ final class SyncEngine {
             calibrations = saved
         } else {
             calibrations = [:]
+        }
+        if let data = defaults.data(forKey: "colorCalibrations"),
+           let saved = try? JSONDecoder().decode([String: ColorCalibration].self, from: data) {
+            colorCalibrations = saved
+        } else {
+            colorCalibrations = [:]
         }
         writer.onFailure = { [weak self] in self?.scheduleRediscover(after: 3) }
     }
@@ -212,6 +267,8 @@ final class SyncEngine {
             self.migrateLegacyCalibration()
             self.searching = false
             self.forceNextWrite = true
+            self.colors.reset()
+            self.applyColor()
             self.onUpdate?()
         }
     }
@@ -288,6 +345,11 @@ final class SyncEngine {
             updateModes()
             if enabled, !manualOverride { correctHDR(now: now) }
         }
+        // Put the colour tables back if a ColorSync reload or another app replaced them.
+        if now.timeIntervalSince(lastColorCheck) >= 2 {
+            lastColorCheck = now
+            applyColor()
+        }
 
         var easing = false
         let reading = readNits()
@@ -346,7 +408,7 @@ final class SyncEngine {
             shownNits[m.key] = shown
 
             if case let .hdr(id) = modes[m.key] {
-                setHDR(nits: shown, key: m.key, display: id, now: now)
+                setHDR(nits: shown * colorCompensation(m.key), key: m.key, display: id, now: now)
                 continue
             }
             let value = calibration(for: m.key).value(forNits: shown, uncalibratedMaxNits: m.uncalibratedMaxNits)
@@ -379,8 +441,10 @@ final class SyncEngine {
     private func correctHDR(now: Date) {
         guard now.timeIntervalSince(lastHDRWrite) > 0.3 else { return }
         for m in monitors {
-            guard case let .hdr(id) = modes[m.key], let target = shownNits[m.key], target == nits,
-                  let actual = hdrNits[m.key], abs(actual - target) > max(0.5, target * 0.015),
+            guard case let .hdr(id) = modes[m.key], let shown = shownNits[m.key], shown == nits,
+                  let actual = hdrNits[m.key] else { continue }
+            let target = shown * colorCompensation(m.key)
+            guard abs(actual - target) > max(0.5, target * 0.015),
                   let level = HDRBrightness.level(id) else { continue }
             hdrOffset[m.key] = min(0.3, max(-0.3, level - HDRBrightness.estimatedLevel(forNits: actual)))
             let next = min(1, max(0, HDRBrightness.estimatedLevel(forNits: target) + hdrOffset[m.key]!))

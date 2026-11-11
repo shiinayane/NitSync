@@ -11,7 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// One line per external monitor, right after `statusLine`.
     private var monitorLines: [NSMenuItem] = []
     private let syncItem = NSMenuItem(title: "跟随内屏亮度", action: #selector(toggleSync), keyEquivalent: "")
-    private let calibrateItem = NSMenuItem(title: "校准…", action: #selector(openCalibration), keyEquivalent: "")
+    private let calibrateItem = NSMenuItem(title: "亮度校准…", action: #selector(openCalibration), keyEquivalent: "")
+    private let colorItem = NSMenuItem(title: "颜色校准…", action: #selector(openColorCalibration), keyEquivalent: "")
     private let loginItem = NSMenuItem(title: "登录时启动", action: #selector(toggleLogin), keyEquivalent: "")
     private var shownSymbol = ""
 
@@ -22,10 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.autoenablesItems = false
         statusLine.isEnabled = false
         noteLine.isEnabled = false
-        for item in [syncItem, calibrateItem, loginItem] { item.target = self }
+        for item in [syncItem, calibrateItem, colorItem, loginItem] { item.target = self }
         menu.items = [
             statusLine, noteLine, .separator(),
-            syncItem, calibrateItem, .separator(),
+            syncItem, calibrateItem, colorItem, .separator(),
             loginItem,
             NSMenuItem(title: "退出 NitSync", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
         ]
@@ -37,7 +38,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // `open NitSync.app --args --calibrate` goes straight to calibration once monitors are found.
         if CommandLine.arguments.contains("--calibrate") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.calibration.show() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in self?.calibration.show(.brightness) }
+        }
+        // `--calibrate-color` does the same for colour calibration; `--calibrate-grey` also
+        // starts the grey levels (for checking that screen without a keyboard).
+        if CommandLine.arguments.contains("--calibrate-color") || CommandLine.arguments.contains("--calibrate-grey") {
+            let grey = CommandLine.arguments.contains("--calibrate-grey")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                self?.calibration.show(.color)
+                if grey {
+                    let levels = ColorCalibration.greyLevels
+                    self?.calibration.startColorSession(level: levels[0], then: Array(levels.dropFirst()))
+                }
+            }
         }
     }
 
@@ -56,7 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             lines = engine.monitors.map { m in
                 if engine.isHDR(m.key) {
-                    return "→  \(m.name)  HDR · " + (engine.hdrNits[m.key].map { String(format: "%.0f nit", $0) } ?? "—")
+                    return "→  \(m.name)  HDR · " + (engine.effectiveHDRNits(m.key).map { String(format: "%.0f nit", $0) } ?? "—")
                 }
                 return "→  \(m.name)  SDR · " + (engine.sentPercent[m.key].map { "\(Int($0))" } ?? "—")
             }
@@ -120,7 +133,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openCalibration() {
-        calibration.show()
+        calibration.show(.brightness)
+    }
+
+    @objc private func openColorCalibration() {
+        calibration.show(.color)
     }
 }
 

@@ -3,25 +3,44 @@ import AppKit
 /// Full-screen calibration: every screen gets the same dark surround with a white patch of the
 /// same physical size, so the user only has to compare the patches and press keys.
 ///
+/// Two modes share the screens: brightness (match the external's luminance with a slider)
+/// and colour (match its white point through forced-choice questions; see
+/// `CalibrationOverlay+Color.swift`).
+///
 /// The built-in screen shows the controls (slider and buttons); the keyboard works from any
 /// screen. The system brightness keys still change the built-in panel, since they are not
 /// key events the app sees.
 final class CalibrationOverlay {
+    enum Mode { case brightness, color }
+
     weak var engine: SyncEngine?
     private(set) var isShowing = false
+    private(set) var mode: Mode = .brightness
 
     private var windows: [NSWindow] = []
-    private var builtinPanel: PatchView?
+    var builtinPanel: PatchView?
     /// Patch views on external screens, by monitor key.
-    private var externalPanels: [String: PatchView] = [:]
+    var externalPanels: [String: PatchView] = [:]
     private var builtForKeys: [String] = []
 
-    private var selectedKey: String?
+    // Colour mode state (used by the extension).
+    var session: ColorSession?
+    /// A finished run waiting to be saved or thrown away.
+    var pendingRun: ColorCalibration.Run?
+    /// Grey level of the run in progress or waiting to be saved (1 is white).
+    var sessionLevel: Double = 1
+    /// Grey levels still to run after this one.
+    var levelQueue: [Double] = []
+    /// True while the patches are dark between questions; answers are ignored then.
+    var blanking = false
+    var blankToken = 0
+
+    var selectedKey: String?
     private var value: Double = 50
     /// Set once the user adjusts the value; until then it follows the live mapping.
     private var touched = false
-    private var confirmClear = false
-    private var flash: String?
+    var confirmClear = false
+    var flash: String?
     private var flashToken = 0
 
     private var keyMonitor: Any?
@@ -33,24 +52,26 @@ final class CalibrationOverlay {
     private let doneButton = NSButton(title: "完成", target: nil, action: nil)
     private lazy var controls: NSStackView = makeControls()
 
-    private var selected: MonitorInfo? { engine?.monitors.first { $0.key == selectedKey } }
+    var selected: MonitorInfo? { engine?.monitors.first { $0.key == selectedKey } }
 
     /// The selected monitor is in HDR, where it ignores DDC brightness, so matching is pointless.
-    private var selectedIsHDR: Bool {
+    var selectedIsHDR: Bool {
         guard let engine, let key = selectedKey else { return false }
         return engine.isHDR(key)
     }
 
     // MARK: - Showing
 
-    func show() {
+    func show(_ mode: Mode = .brightness) {
         guard let engine else { return }
         if isShowing {
+            if mode != self.mode { switchMode(to: mode) }
             NSApp.activate()
             (builtinPanel?.window ?? windows.first)?.makeKeyAndOrderFront(nil)
             return
         }
         isShowing = true
+        self.mode = mode
         touched = false
         confirmClear = false
         flash = nil
@@ -69,8 +90,21 @@ final class CalibrationOverlay {
         refresh()
     }
 
+    private func switchMode(to mode: Mode) {
+        endColorSession()
+        if touched {
+            touched = false
+            engine?.resync()
+        }
+        confirmClear = false
+        self.mode = mode
+        controls.isHidden = mode == .color
+        refresh()
+    }
+
     func close() {
         guard isShowing else { return }
+        endColorSession()
         isShowing = false
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
@@ -119,6 +153,7 @@ final class CalibrationOverlay {
             if isBuiltin {
                 builtinPanel = view
                 view.controls = controls
+                controls.isHidden = mode == .color
             } else if let key {
                 externalPanels[key] = view
             }
@@ -143,6 +178,7 @@ final class CalibrationOverlay {
                 touched = false
                 engine.resync()
             }
+            endColorSession()
             selectedKey = engine.monitors.first?.key
         }
         if !touched, let m = selected, let p = engine.predictedPercent(for: m) { value = p.rounded() }
@@ -184,7 +220,7 @@ final class CalibrationOverlay {
         engine.resync()
     }
 
-    private func selectNext() {
+    func selectNext() {
         guard let engine, engine.monitors.count > 1 else { return }
         let keys = engine.monitors.map(\.key)
         let next = keys[((keys.firstIndex { $0 == selectedKey } ?? -1) + 1) % keys.count]
@@ -192,12 +228,15 @@ final class CalibrationOverlay {
             touched = false
             engine.resync()
         }
+        let wasAsking = session != nil, level = sessionLevel, queue = levelQueue
+        endColorSession()
         confirmClear = false
         selectedKey = next
         refresh()
+        if mode == .color, wasAsking { startColorSession(level: level, then: queue) }
     }
 
-    private func show(flash text: String) {
+    func show(flash text: String) {
         flash = text
         flashToken += 1
         let token = flashToken
@@ -211,6 +250,7 @@ final class CalibrationOverlay {
     // MARK: - Input
 
     private func handle(_ event: NSEvent) -> Bool {
+        if mode == .color { return handleColor(event) }
         let step: Double = event.modifierFlags.contains(.shift) ? 5 : 1
         switch event.keyCode {
         case 123, 125: setValue(value - step)          // ← ↓
@@ -251,8 +291,20 @@ final class CalibrationOverlay {
 
     // MARK: - Text
 
-    private func render() {
+    func render() {
         guard isShowing, let engine else { return }
+        if mode == .color {
+            renderColor()
+            return
+        }
+        builtinPanel?.patchGray = nil
+        builtinPanel?.innerGray = nil
+        builtinPanel?.surround = PatchView.defaultSurround
+        externalPanels.values.forEach {
+            $0.patchGray = nil
+            $0.innerGray = nil
+            $0.surround = PatchView.defaultSurround
+        }
         let m = selected
         let multiple = engine.monitors.count > 1
 
@@ -290,7 +342,7 @@ final class CalibrationOverlay {
     /// "HDR · 70 nit" for an HDR monitor, else the DDC value being shown.
     private func reading(for key: String) -> String {
         guard let engine, engine.isHDR(key) else { return "\(Int(value))" }
-        return "HDR · " + (engine.hdrNits[key].map { "\(Int($0.rounded())) nit" } ?? "—")
+        return "HDR · " + (engine.effectiveHDRNits(key).map { "\(Int($0.rounded())) nit" } ?? "—")
     }
 
     private func hint() -> String {
@@ -329,10 +381,17 @@ private final class OverlayWindow: NSWindow {
 }
 
 /// Dark surround, a centred white patch, and text (plus optional controls) below it.
-private final class PatchView: NSView {
+final class PatchView: NSView {
     var patchSide: CGFloat = 300 { didSet { needsLayout = true; needsDisplay = true } }
     /// Unselected monitors show a grey patch so it is clear which one is being adjusted.
     var dimmed = false { didSet { if dimmed != oldValue { needsDisplay = true } } }
+    /// Overrides the patch with this sRGB grey (colour mode's grey levels and dark pauses).
+    var patchGray: CGFloat? { didSet { if patchGray != oldValue { needsDisplay = true } } }
+    /// Draws a square of this sRGB grey inside the patch, which stays white around it.
+    var innerGray: CGFloat? { didSet { if innerGray != oldValue { needsDisplay = true } } }
+    static let defaultSurround: CGFloat = 0.12
+    /// Grey of the surround (colour mode uses black).
+    var surround: CGFloat = PatchView.defaultSurround { didSet { if surround != oldValue { needsDisplay = true } } }
     let caption = NSTextField(wrappingLabelWithString: "")
     var controls: NSView? {
         didSet {
@@ -361,10 +420,14 @@ private final class PatchView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor(white: 0.12, alpha: 1).setFill()
+        NSColor(white: surround, alpha: 1).setFill()
         bounds.fill()
-        (dimmed ? NSColor(white: 0.3, alpha: 1) : NSColor.white).setFill()
+        (patchGray.map { NSColor(srgbRed: $0, green: $0, blue: $0, alpha: 1) } ?? (dimmed ? NSColor(white: 0.3, alpha: 1) : NSColor.white)).setFill()
         patchRect.fill()
+        if let innerGray {
+            NSColor(srgbRed: innerGray, green: innerGray, blue: innerGray, alpha: 1).setFill()
+            patchRect.insetBy(dx: patchSide * 0.22, dy: patchSide * 0.22).fill()
+        }
     }
 
     override func layout() {
