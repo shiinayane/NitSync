@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="Icon/AppIcon-dark.png">
+  <img src="Icon/AppIcon-light.png" width="128" alt="NitSync 图标">
+</picture>
+
 # NitSync
 
 让外接显示器的亮度跟随 MacBook 内屏，包括亮度键、控制中心和自动亮度。按**亮度（nit）**对齐，不是按百分比对齐。
@@ -20,6 +25,8 @@ open build/NitSync.app
 ```
 
 需要 Apple Silicon、macOS 14 以上和 Xcode 命令行工具。
+
+应用图标是 Icon Composer 文档 `Icon/AppIcon.icon`，背景交给系统，会随浅色、深色、着色和透明外观变化。改完图标后运行 `Icon/build-icon.sh`（需要 Xcode 26 以上），它会重新生成 `Resources/` 里的 `Assets.car` 和 `AppIcon.icns`，以及 `Icon/` 里的浅色、深色预览图。这些产物已提交，所以平时构建只需要命令行工具。
 
 ## 校准
 

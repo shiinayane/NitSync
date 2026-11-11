@@ -27,6 +27,8 @@ open build/NitSync.app --args --calibrate    # 启动后直接进入全屏校准
 | `Screens.swift` | NSScreen/CGDisplay ↔ DDC 显示器的对应（靠 EDID 数字） |
 | `Calibration.swift` | nit → DDC 值的分段线性映射，每台显示器一套 |
 | `CalibrationOverlay.swift` | 全屏校准：所有屏幕上显示同物理尺寸的白块，键盘操作 |
+| `Icon/AppIcon.icon` | Icon Composer 文档：`fill` 为 `automatic`（背景由系统按外观提供），两组图层（笔记本在上，显示器在下），每组的 `layers` 里排在前面的在上层。SVG 图层画布 1024×1024，整体用 `translate(29 32)` 居中。太阳是自己画的：SF Symbols 的许可不允许用在应用图标里 |
+| `Icon/build-icon.sh` | `actool` 编译出 `Resources/Assets.car` 和 `AppIcon.icns`（都已提交），再用 Icon Composer 自带的 `ictool` 导出浅色、深色预览图。`ictool` 在 `Icon Composer.app/Contents/Executables/`，`xcrun` 找不到；渲染外观可选 Default、Dark、TintedLight、TintedDark、ClearLight、ClearDark |
 
 ## 私有接口与实测事实
 

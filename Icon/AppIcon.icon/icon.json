@@ -1,0 +1,34 @@
+{
+  "fill" : "automatic",
+  "groups" : [
+    {
+      "layers" : [
+        { "image-name" : "laptop-sun.svg", "name" : "Laptop Sun" },
+        { "image-name" : "laptop-screen.svg", "name" : "Laptop Screen" },
+        { "image-name" : "laptop-bezel.svg", "name" : "Laptop Bezel" },
+        { "image-name" : "laptop-base.svg", "name" : "Laptop Base" }
+      ],
+      "name" : "Laptop",
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "specular" : true,
+      "translucency" : { "enabled" : false, "value" : 0.5 }
+    },
+    {
+      "layers" : [
+        { "image-name" : "monitor-sun.svg", "name" : "Monitor Sun" },
+        { "image-name" : "monitor-screen.svg", "name" : "Monitor Screen" },
+        { "image-name" : "monitor-bezel.svg", "name" : "Monitor Bezel" },
+        { "image-name" : "monitor-stand.svg", "name" : "Monitor Stand" }
+      ],
+      "name" : "Monitor",
+      "shadow" : { "kind" : "neutral", "opacity" : 0.5 },
+      "specular" : true,
+      "translucency" : { "enabled" : false, "value" : 0.5 }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}
