@@ -1,0 +1,527 @@
+{
+  "  ·  R redo this run  ·  Esc quit without saving": {
+    "ja": "  ·  R 今回をやり直す  ·  Esc 保存せずに終了",
+    "zh-Hans": "  ·  R 重测这一轮  ·  Esc 不保存退出",
+    "zh-Hant": "  ·  R 重測這一輪  ·  Esc 不儲存並離開"
+  },
+  "  ·  Tab next display": {
+    "ja": "  ·  Tab 次のディスプレイ",
+    "zh-Hans": "  ·  Tab 换一台",
+    "zh-Hant": "  ·  Tab 換一台"
+  },
+  "  ·  levels left after this: %ld": {
+    "ja": "  ·  このあと残り %ld 段階",
+    "zh-Hans": "  ·  之后还有 %ld 档",
+    "zh-Hant": "  ·  之後還有 %ld 階"
+  },
+  "%1$@ %2$@": {
+    "ja": "%1$@: %2$@",
+    "zh-Hans": "%1$@：%2$@",
+    "zh-Hant": "%1$@：%2$@"
+  },
+  "%1$@: %3$@ (runs: %2$ld)": {
+    "ja": "%1$@: %3$@（%2$ld 回）",
+    "zh-Hans": "%1$@：%2$ld 轮，%3$@",
+    "zh-Hant": "%1$@：%2$ld 輪，%3$@"
+  },
+  "%@ is in HDR: its white is set to the same nits as the built-in display, so no calibration is needed.\\nIf the two whites still look different, turn off HDR for this display and calibrate over DDC instead.": {
+    "ja": "%@ は HDR モードです。白の明るさは内蔵ディスプレイと同じ nit に直接設定されるため、キャリブレーションは不要です。\\n2 つの白がそれでも違って見える場合は、このディスプレイの HDR をオフにして DDC でキャリブレーションしてください。",
+    "zh-Hans": "%@ 开着 HDR：系统直接把它的白色设成和内屏一样的 nit，不需要校准。\\n如果两块白色看起来还是不一样，可以关掉这台的 HDR，改用 DDC 校准。",
+    "zh-Hant": "%@ 已開啟 HDR：系統會直接把它的白色設成與內建螢幕相同的 nit，不需要校正。\\n如果兩塊白色看起來仍然不同，可以關閉這台的 HDR，改用 DDC 校正。"
+  },
+  "%@: not calibrated yet; brightness is estimated": {
+    "ja": "%@: 未キャリブレーションのため、明るさは推定値です",
+    "zh-Hans": "%@ 尚未校准，亮度是估算值",
+    "zh-Hant": "%@ 尚未校正，亮度為估計值"
+  },
+  "%@: not measured": {
+    "ja": "%@: 未測定",
+    "zh-Hans": "%@：未测",
+    "zh-Hant": "%@：未測"
+  },
+  "%ld%% Gray": {
+    "ja": "%ld%% グレー",
+    "zh-Hans": "%ld%% 灰",
+    "zh-Hant": "%ld%% 灰"
+  },
+  "(The built-in brightness is close to the saved %ld nit point; saving will replace it.)": {
+    "ja": "（内蔵ディスプレイの明るさが保存済みの %ld nit のポイントに近いため、保存すると置き換わります。）",
+    "zh-Hans": "（现在的内屏亮度和已保存的 %ld nit 很接近，保存会替换它。）",
+    "zh-Hant": "（目前的內建螢幕亮度與已儲存的 %ld nit 很接近，儲存會取代它。）"
+  },
+  ", ": {
+    "ja": "、",
+    "zh-Hans": "，",
+    "zh-Hant": "，"
+  },
+  "; ": {
+    "ja": "。",
+    "zh-Hans": "；",
+    "zh-Hant": "；"
+  },
+  "Another run at a different time makes the average more accurate.": {
+    "ja": "時間を変えてもう一度測ると、平均がより正確になります。",
+    "zh-Hans": "换个时间再测一轮，平均后会更准。",
+    "zh-Hant": "換個時間再測一輪，平均後會更準。"
+  },
+  "Averaged with earlier runs (%1$ld): %2$@.": {
+    "ja": "以前の %1$ld 回と平均すると: %2$@。",
+    "zh-Hans": "和之前 %1$ld 轮平均后：%2$@。",
+    "zh-Hant": "和之前 %1$ld 輪平均後：%2$@。"
+  },
+  "Averaged with earlier runs (%1$ld): %2$@. The external display now shows the average.": {
+    "ja": "以前の %1$ld 回と平均すると: %2$@。外部ディスプレイには平均後の結果が表示されています。",
+    "zh-Hans": "和之前 %1$ld 轮平均后：%2$@。外屏现在显示的就是平均后的效果。",
+    "zh-Hant": "和之前 %1$ld 輪平均後：%2$@。外接螢幕現在顯示的就是平均後的效果。"
+  },
+  "Both screens now draw red, green and blue normally through their own profiles. Do the three colors still match the built-in display?\\nIf they do, press Esc to finish; if not, press R for another run.": {
+    "ja": "両方の画面が、それぞれのプロファイルを通して赤・緑・青を通常どおり表示しています。3 色は内蔵ディスプレイと一致していますか？\\n一致していれば Esc で終了、違っていれば R でもう一度測ります。",
+    "zh-Hans": "现在两块屏都按各自的描述文件正常显示红、绿、蓝。和内屏比，三种颜色还一致吗？\\n一致就按 Esc 完成；不一致可以按 R 再测一轮。",
+    "zh-Hant": "現在兩塊螢幕都依各自的描述檔正常顯示紅、綠、藍。和內建螢幕比，三種顏色還一致嗎？\\n一致就按 Esc 完成；不一致可以按 R 再測一輪。"
+  },
+  "Brightness Calibration…": {
+    "ja": "明るさのキャリブレーション…",
+    "zh-Hans": "亮度校准…",
+    "zh-Hant": "亮度校正…"
+  },
+  "Built-in display is off or asleep; external keeps its brightness": {
+    "ja": "内蔵ディスプレイがオフまたはスリープ中のため、外部ディスプレイは現在の明るさを保ちます",
+    "zh-Hans": "内屏关闭或休眠中，外接屏保持当前亮度",
+    "zh-Hant": "內建螢幕已關閉或睡眠中，外接螢幕維持目前亮度"
+  },
+  "Built-in: %@": {
+    "ja": "内蔵: %@",
+    "zh-Hans": "内屏 %@",
+    "zh-Hant": "內建螢幕 %@"
+  },
+  "Can’t read this display’s color profile, so primaries can’t be calibrated.": {
+    "ja": "このディスプレイのカラープロファイルを読み込めないため、原色をキャリブレーションできません。",
+    "zh-Hans": "读不到这台显示器的颜色描述文件，没法测原色。",
+    "zh-Hant": "讀不到這台顯示器的色彩描述檔，無法測原色。"
+  },
+  "Cleared the calibration of %@": {
+    "ja": "%@ のキャリブレーションを消去しました",
+    "zh-Hans": "已清除 %@ 的校准",
+    "zh-Hant": "已清除 %@ 的校正"
+  },
+  "Cleared the color calibration of %@": {
+    "ja": "%@ のカラーキャリブレーションを消去しました",
+    "zh-Hans": "已清除 %@ 的颜色校准",
+    "zh-Hant": "已清除 %@ 的色彩校正"
+  },
+  "Color Calibration…": {
+    "ja": "カラーキャリブレーション…",
+    "zh-Hans": "颜色校准…",
+    "zh-Hant": "色彩校正…"
+  },
+  "Color calibration · %1$@ · %2$@  ·  question %3$ld (about %4$@ per run)": {
+    "ja": "カラーキャリブレーション · %1$@ · %2$@  ·  第 %3$ld 問（1 回あたり約 %4$@ 問）",
+    "zh-Hans": "颜色校准 · %1$@ · %2$@  ·  第 %3$ld 题（一轮约 %4$@ 题）",
+    "zh-Hant": "色彩校正 · %1$@ · %2$@  ·  第 %3$ld 題（一輪約 %4$@ 題）"
+  },
+  "Color calibration · %1$@ · %2$@  ·  result after saving": {
+    "ja": "カラーキャリブレーション · %1$@ · %2$@  ·  保存後の実際の表示",
+    "zh-Hans": "颜色校准 · %1$@ · %2$@  ·  保存后的实际效果",
+    "zh-Hant": "色彩校正 · %1$@ · %2$@  ·  儲存後的實際效果"
+  },
+  "Color calibration · %1$@ · %2$@  ·  run finished": {
+    "ja": "カラーキャリブレーション · %1$@ · %2$@  ·  1 回分が完了",
+    "zh-Hans": "颜色校准 · %1$@ · %2$@  ·  这一轮完成",
+    "zh-Hant": "色彩校正 · %1$@ · %2$@  ·  這一輪完成"
+  },
+  "Color calibration · %@": {
+    "ja": "カラーキャリブレーション · %@",
+    "zh-Hans": "颜色校准 · %@",
+    "zh-Hant": "色彩校正 · %@"
+  },
+  "Compare with the built-in display": {
+    "ja": "内蔵ディスプレイと比べてください",
+    "zh-Hans": "和内屏比较",
+    "zh-Hant": "與內建螢幕比較"
+  },
+  "Compared with the built-in display, does the external’s gray (against its white frame) look lighter or darker?\\n← Lighter        → Darker        ↓ Can’t tell": {
+    "ja": "内蔵ディスプレイと比べて、外部ディスプレイの中央のグレー（周りの白い枠と見比べて）は明るく見えますか、暗く見えますか？\\n← 明るい        → 暗い        ↓ 違いがわからない",
+    "zh-Hans": "和内屏比，外屏中间的灰色（对照它周围的白框）显得更亮还是更暗？\\n← 更亮        → 更暗        ↓ 看不出差别",
+    "zh-Hant": "和內建螢幕比，外接螢幕中間的灰色（對照它周圍的白框）顯得更亮還是更暗？\\n← 更亮        → 更暗        ↓ 看不出差別"
+  },
+  "Compared with the built-in display, is the external’s %@ more vivid or paler?\\n← More vivid        → Paler        ↓ Can’t tell": {
+    "ja": "内蔵ディスプレイと比べて、外部ディスプレイの%@は鮮やかですか、淡いですか？\\n← 鮮やか        → 淡い        ↓ 違いがわからない",
+    "zh-Hans": "和内屏比，外屏的%@更鲜艳还是更淡？\\n← 更鲜艳        → 更淡        ↓ 看不出差别",
+    "zh-Hant": "和內建螢幕比，外接螢幕的%@更鮮豔還是更淡？\\n← 更鮮豔        → 更淡        ↓ 看不出差別"
+  },
+  "Compared with the built-in display, which way does the external’s %1$@ lean?\\n← More %2$@        → More %3$@        ↓ Can’t tell": {
+    "ja": "内蔵ディスプレイと比べて、外部ディスプレイの%1$@はどちら寄りですか？\\n← %2$@寄り        → %3$@寄り        ↓ 違いがわからない",
+    "zh-Hans": "和内屏比，外屏的%1$@更偏哪边？\\n← 偏%2$@        → 偏%3$@        ↓ 看不出差别",
+    "zh-Hant": "和內建螢幕比，外接螢幕的%1$@更偏哪邊？\\n← 偏%2$@        → 偏%3$@        ↓ 看不出差別"
+  },
+  "Compared with the built-in display, which way does the external’s gray lean?\\n← Greener        → More magenta        ↓ Can’t tell": {
+    "ja": "内蔵ディスプレイと比べて、外部ディスプレイのグレーはどちら寄りですか？\\n← 緑寄り        → マゼンタ寄り        ↓ 違いがわからない",
+    "zh-Hans": "和内屏比，外屏的灰色更偏哪边？\\n← 偏绿        → 偏紫红        ↓ 看不出差别",
+    "zh-Hant": "和內建螢幕比，外接螢幕的灰色更偏哪邊？\\n← 偏綠        → 偏紫紅        ↓ 看不出差別"
+  },
+  "Compared with the built-in display, which way does the external’s gray lean?\\n← Yellower (warmer)        → Bluer (cooler)        ↓ Can’t tell": {
+    "ja": "内蔵ディスプレイと比べて、外部ディスプレイのグレーはどちら寄りですか？\\n← 黄色寄り（暖かい）        → 青寄り（冷たい）        ↓ 違いがわからない",
+    "zh-Hans": "和内屏比，外屏的灰色更偏哪边？\\n← 偏黄（暖）        → 偏蓝（冷）        ↓ 看不出差别",
+    "zh-Hant": "和內建螢幕比，外接螢幕的灰色更偏哪邊？\\n← 偏黃（暖）        → 偏藍（冷）        ↓ 看不出差別"
+  },
+  "Compared with the built-in display, which way does the external’s white lean?\\n← Greener        → More magenta        ↓ Can’t tell": {
+    "ja": "内蔵ディスプレイと比べて、外部ディスプレイの白はどちら寄りですか？\\n← 緑寄り        → マゼンタ寄り        ↓ 違いがわからない",
+    "zh-Hans": "和内屏比，外屏的白色更偏哪边？\\n← 偏绿        → 偏紫红        ↓ 看不出差别",
+    "zh-Hant": "和內建螢幕比，外接螢幕的白色更偏哪邊？\\n← 偏綠        → 偏紫紅        ↓ 看不出差別"
+  },
+  "Compared with the built-in display, which way does the external’s white lean?\\n← Yellower (warmer)        → Bluer (cooler)        ↓ Can’t tell": {
+    "ja": "内蔵ディスプレイと比べて、外部ディスプレイの白はどちら寄りですか？\\n← 黄色寄り（暖かい）        → 青寄り（冷たい）        ↓ 違いがわからない",
+    "zh-Hans": "和内屏比，外屏的白色更偏哪边？\\n← 偏黄（暖）        → 偏蓝（冷）        ↓ 看不出差别",
+    "zh-Hant": "和內建螢幕比，外接螢幕的白色更偏哪邊？\\n← 偏黃（暖）        → 偏藍（冷）        ↓ 看不出差別"
+  },
+  "Consistent with earlier runs.": {
+    "ja": "以前の結果と一致しています。",
+    "zh-Hans": "和之前的结果一致。",
+    "zh-Hant": "和之前的結果一致。"
+  },
+  "Couldn’t change the login item": {
+    "ja": "ログイン項目を変更できませんでした",
+    "zh-Hans": "无法更改登录项",
+    "zh-Hant": "無法更改登入項目"
+  },
+  "Done": {
+    "ja": "完了",
+    "zh-Hans": "完成",
+    "zh-Hant": "完成"
+  },
+  "Esc give up": {
+    "ja": "Esc 中止",
+    "zh-Hans": "Esc 放弃",
+    "zh-Hant": "Esc 放棄"
+  },
+  "Esc quit": {
+    "ja": "Esc 終了",
+    "zh-Hans": "Esc 退出",
+    "zh-Hant": "Esc 離開"
+  },
+  "External Display": {
+    "ja": "外部ディスプレイ",
+    "zh-Hans": "外接显示器",
+    "zh-Hant": "外接顯示器"
+  },
+  "External: %@": {
+    "ja": "外部: %@",
+    "zh-Hans": "外接 %@",
+    "zh-Hant": "外接螢幕 %@"
+  },
+  "Follow Built-in Brightness": {
+    "ja": "内蔵ディスプレイの明るさに追従",
+    "zh-Hans": "跟随内屏亮度",
+    "zh-Hant": "跟隨內建螢幕亮度"
+  },
+  "In SDR the color correction makes the external slightly darker; redo the brightness calibration afterwards.": {
+    "ja": "SDR では色補正で外部ディスプレイが少し暗くなります。終わったら明るさのキャリブレーションをやり直してください。",
+    "zh-Hans": "SDR 模式下颜色调整会让外屏略暗，做完后建议重新做一次亮度校准。",
+    "zh-Hant": "SDR 模式下色彩調整會讓外接螢幕略暗，完成後建議重新做一次亮度校正。"
+  },
+  "Look at the two screens in turn rather than staring at one; when unsure, press ↓.": {
+    "ja": "片方を見続けず、2 つの画面を交互に見てください。迷ったら ↓ を押します。",
+    "zh-Hans": "两块屏轮流看，不要盯着一块看太久；拿不准就按 ↓。",
+    "zh-Hant": "兩塊螢幕輪流看，不要盯著一塊看太久；拿不準就按 ↓。"
+  },
+  "Next: %@.": {
+    "ja": "次は %@ です。",
+    "zh-Hans": "接下来是%@。",
+    "zh-Hant": "接下來是%@。"
+  },
+  "No color calibration yet. Suggested order: white, grays, primaries.": {
+    "ja": "カラーキャリブレーションはまだありません。おすすめの順序: 白、グレー、原色。",
+    "zh-Hans": "还没有颜色校准。建议顺序：白色、灰阶、原色。",
+    "zh-Hant": "尚無色彩校正。建議順序：白色、灰階、原色。"
+  },
+  "No external display with DDC/CI found": {
+    "ja": "DDC/CI 対応の外部ディスプレイが見つかりません",
+    "zh-Hans": "没有找到支持 DDC/CI 的外接显示器",
+    "zh-Hant": "找不到支援 DDC/CI 的外接顯示器"
+  },
+  "No external display with DDC/CI found.": {
+    "ja": "DDC/CI 対応の外部ディスプレイが見つかりません。",
+    "zh-Hans": "没有找到支持 DDC/CI 的外接显示器。",
+    "zh-Hant": "找不到支援 DDC/CI 的外接顯示器。"
+  },
+  "Not calibrated yet; brightness is estimated": {
+    "ja": "未キャリブレーションのため、明るさは推定値です",
+    "zh-Hans": "尚未校准，亮度是估算值",
+    "zh-Hant": "尚未校正，亮度為估計值"
+  },
+  "Open at Login": {
+    "ja": "ログイン時に開く",
+    "zh-Hans": "登录时启动",
+    "zh-Hant": "登入時開啟"
+  },
+  "Points saved: %ld. If brightness in between still doesn’t match, add another point; otherwise press Esc to finish.": {
+    "ja": "保存済みのポイント: %ld。中間の明るさがまだ合わない場合はポイントを追加し、合っていれば Esc で終了します。",
+    "zh-Hans": "已保存 %ld 个点。中间亮度还不一致的话可以再补一个点，否则按 Esc 完成。",
+    "zh-Hant": "已儲存 %ld 個點。中間亮度仍不一致的話可以再補一個點，否則按 Esc 完成。"
+  },
+  "Press R again to clear all calibration points of %@.": {
+    "ja": "もう一度 R を押すと、%@ のキャリブレーションポイントをすべて消去します。",
+    "zh-Hans": "再按一次 R，清除 %@ 的全部校准点。",
+    "zh-Hant": "再按一次 R，清除 %@ 的所有校正點。"
+  },
+  "Press Tab to switch to this display": {
+    "ja": "Tab キーでこのディスプレイに切り替え",
+    "zh-Hans": "按 Tab 切换到这台",
+    "zh-Hant": "按 Tab 切換到這台"
+  },
+  "Press ⌫ again to clear all color calibration of %@.": {
+    "ja": "もう一度 ⌫ を押すと、%@ のカラーキャリブレーションをすべて消去します。",
+    "zh-Hans": "再按一次 ⌫，清除 %@ 的全部颜色校准。",
+    "zh-Hant": "再按一次 ⌫，清除 %@ 的所有色彩校正。"
+  },
+  "Primaries": {
+    "ja": "原色",
+    "zh-Hans": "原色",
+    "zh-Hant": "原色"
+  },
+  "Primaries saved (runs so far: %ld).": {
+    "ja": "原色を保存しました（これまで %ld 回）。",
+    "zh-Hans": "已保存原色，共 %ld 轮。",
+    "zh-Hant": "已儲存原色，共 %ld 輪。"
+  },
+  "Quit NitSync": {
+    "ja": "NitSync を終了",
+    "zh-Hans": "退出 NitSync",
+    "zh-Hant": "結束 NitSync"
+  },
+  "Quite different from earlier runs; do a few more before trusting it.": {
+    "ja": "以前の結果とかなり異なります。何回か測り直してから判断してください。",
+    "zh-Hans": "和之前的结果差别较大，建议多测几轮再看。",
+    "zh-Hant": "和之前的結果差異較大，建議多測幾輪再看。"
+  },
+  "Save This Point": {
+    "ja": "このポイントを保存",
+    "zh-Hans": "保存这个点",
+    "zh-Hant": "儲存這個點"
+  },
+  "Saved %1$@ (runs so far: %2$ld).": {
+    "ja": "%1$@ を保存しました（これまで %2$ld 回）。",
+    "zh-Hans": "已保存%1$@，共 %2$ld 轮。",
+    "zh-Hant": "已儲存%1$@，共 %2$ld 輪。"
+  },
+  "Saved: built-in %1$ld nit ↔ %2$@ %3$ld": {
+    "ja": "保存しました: 内蔵 %1$ld nit ↔ %2$@ %3$ld",
+    "zh-Hans": "已保存：内屏 %1$ld nit ↔ %2$@ %3$ld",
+    "zh-Hant": "已儲存：內建螢幕 %1$ld nit ↔ %2$@ %3$ld"
+  },
+  "Saving writes this into the external display’s color profile; color-managed apps will show colors with the new primaries.": {
+    "ja": "保存すると外部ディスプレイのカラープロファイルに書き込まれ、カラーマネジメントされたアプリは新しい原色で表示します。",
+    "zh-Hans": "保存后会写进外屏的颜色描述文件，经过色彩管理的 App 都会按新的原色显示。",
+    "zh-Hant": "儲存後會寫入外接螢幕的色彩描述檔，經過色彩管理的 App 都會依新的原色顯示。"
+  },
+  "Step 1: adjust until both whites look equally bright, then press ⏎ to save.": {
+    "ja": "ステップ 1: 2 つの白が同じ明るさに見えるまで調整し、⏎ で保存します。",
+    "zh-Hans": "第 1 步：调到两块白色看起来一样亮，按 ⏎ 保存。",
+    "zh-Hant": "第 1 步：調到兩塊白色看起來一樣亮，按 ⏎ 儲存。"
+  },
+  "Step 2: use the keyboard’s brightness keys to make the built-in display clearly brighter (around %ld nit), then match and save again.": {
+    "ja": "ステップ 2: キーボードの明るさキーで内蔵ディスプレイをはっきり明るく（%ld nit 前後）してから、もう一度合わせて保存します。",
+    "zh-Hans": "第 2 步：用键盘的亮度键把内屏调到明显更亮（建议 %ld nit 左右），再对齐、保存。",
+    "zh-Hant": "第 2 步：用鍵盤的亮度鍵把內建螢幕調到明顯更亮（建議 %ld nit 左右），再對齊、儲存。"
+  },
+  "Step 2: use the keyboard’s brightness keys to make the built-in display clearly darker (around %ld nit), then match and save again.": {
+    "ja": "ステップ 2: キーボードの明るさキーで内蔵ディスプレイをはっきり暗く（%ld nit 前後）してから、もう一度合わせて保存します。",
+    "zh-Hans": "第 2 步：用键盘的亮度键把内屏调到明显更暗（建议 %ld nit 左右），再对齐、保存。",
+    "zh-Hant": "第 2 步：用鍵盤的亮度鍵把內建螢幕調到明顯更暗（建議 %ld nit 左右），再對齊、儲存。"
+  },
+  "The built-in display is off or asleep, so calibration isn’t possible.": {
+    "ja": "内蔵ディスプレイがオフまたはスリープ中のため、キャリブレーションできません。",
+    "zh-Hans": "内屏关闭或休眠中，没法校准。",
+    "zh-Hant": "內建螢幕已關閉或睡眠中，無法校正。"
+  },
+  "The color changes with each question. Look at the two screens in turn; when unsure, press ↓.": {
+    "ja": "色は問題ごとに変わります。2 つの画面を交互に見て、迷ったら ↓ を押します。",
+    "zh-Hans": "颜色每题都会换，两块屏轮流看；拿不准就按 ↓。",
+    "zh-Hant": "顏色每題都會換，兩塊螢幕輪流看；拿不準就按 ↓。"
+  },
+  "This is the first run for this level. Do another one or two at a different time; the average is more reliable.": {
+    "ja": "この段階では初回です。時間を変えてあと 1〜2 回測ると、平均がより信頼できます。",
+    "zh-Hans": "这是这一档的第一轮。换个时间再测一两轮，平均后更可靠。",
+    "zh-Hant": "這是這一階的第一輪。換個時間再測一兩輪，平均後更可靠。"
+  },
+  "This is the first run. Do another one or two at a different time; the average is more reliable.": {
+    "ja": "初回です。時間を変えてあと 1〜2 回測ると、平均がより信頼できます。",
+    "zh-Hans": "这是第一轮。换个时间再测一两轮，平均后更可靠。",
+    "zh-Hant": "這是第一輪。換個時間再測一兩輪，平均後更可靠。"
+  },
+  "This run: %@.": {
+    "ja": "今回の結果: %@。",
+    "zh-Hans": "这一轮：%@。",
+    "zh-Hant": "這一輪：%@。"
+  },
+  "W white (about 1 min)  ·  G grays (%ld levels, about 4 min)  ·  P primaries (about 3 min)  ·  ⌫ clear color calibration  ·  Esc done": {
+    "ja": "W 白（約 1 分）  ·  G グレー（%ld 段階、約 4 分）  ·  P 原色（約 3 分）  ·  ⌫ カラーキャリブレーションを消去  ·  Esc 完了",
+    "zh-Hans": "W 测白色（约 1 分钟）  ·  G 测灰阶（%ld 档，约 4 分钟）  ·  P 测原色（约 3 分钟）  ·  ⌫ 清除颜色校准  ·  Esc 完成",
+    "zh-Hant": "W 測白色（約 1 分鐘）  ·  G 測灰階（%ld 階，約 4 分鐘）  ·  P 測原色（約 3 分鐘）  ·  ⌫ 清除色彩校正  ·  Esc 完成"
+  },
+  "White": {
+    "ja": "白",
+    "zh-Hans": "白色",
+    "zh-Hant": "白色"
+  },
+  "about %ld K cooler": {
+    "ja": "約 %ld K 冷たく",
+    "zh-Hans": "调冷约 %ld K",
+    "zh-Hant": "調冷約 %ld K"
+  },
+  "about %ld K warmer": {
+    "ja": "約 %ld K 暖かく",
+    "zh-Hans": "调暖约 %ld K",
+    "zh-Hant": "調暖約 %ld K"
+  },
+  "about %ld%% darker": {
+    "ja": "約 %ld%% 暗く",
+    "zh-Hans": "调暗约 %ld%%",
+    "zh-Hant": "調暗約 %ld%%"
+  },
+  "about %ld%% lighter": {
+    "ja": "約 %ld%% 明るく",
+    "zh-Hans": "调亮约 %ld%%",
+    "zh-Hant": "調亮約 %ld%%"
+  },
+  "blue": {
+    "ja": "青",
+    "zh-Hans": "蓝色",
+    "zh-Hant": "藍色"
+  },
+  "cyan": {
+    "ja": "シアン",
+    "zh-Hans": "青",
+    "zh-Hant": "青"
+  },
+  "green": {
+    "ja": "緑",
+    "zh-Hans": "绿色",
+    "zh-Hant": "綠色"
+  },
+  "lightness unchanged": {
+    "ja": "明るさは変更なし",
+    "zh-Hans": "明暗不变",
+    "zh-Hant": "明暗不變"
+  },
+  "magenta": {
+    "ja": "マゼンタ",
+    "zh-Hans": "洋红",
+    "zh-Hant": "洋紅"
+  },
+  "no green/magenta change": {
+    "ja": "緑/マゼンタは変更なし",
+    "zh-Hans": "无绿紫偏差",
+    "zh-Hant": "無綠紫偏差"
+  },
+  "noticeably greener": {
+    "ja": "かなり緑寄りに",
+    "zh-Hans": "往绿方向较多",
+    "zh-Hant": "往綠方向較多"
+  },
+  "noticeably more %@": {
+    "ja": "かなり%@寄りに",
+    "zh-Hans": "往%@调较多",
+    "zh-Hant": "往%@調較多"
+  },
+  "noticeably more magenta": {
+    "ja": "かなりマゼンタ寄りに",
+    "zh-Hans": "往紫红方向较多",
+    "zh-Hant": "往紫紅方向較多"
+  },
+  "noticeably more vivid": {
+    "ja": "かなり鮮やかに",
+    "zh-Hans": "更鲜艳较多",
+    "zh-Hant": "更鮮豔較多"
+  },
+  "noticeably paler": {
+    "ja": "かなり淡く",
+    "zh-Hans": "更淡较多",
+    "zh-Hant": "更淡較多"
+  },
+  "orange": {
+    "ja": "オレンジ",
+    "zh-Hans": "橙",
+    "zh-Hant": "橙"
+  },
+  "purple": {
+    "ja": "紫",
+    "zh-Hans": "紫",
+    "zh-Hant": "紫"
+  },
+  "red": {
+    "ja": "赤",
+    "zh-Hans": "红色",
+    "zh-Hant": "紅色"
+  },
+  "searching…": {
+    "ja": "検索中…",
+    "zh-Hans": "查找中",
+    "zh-Hant": "搜尋中"
+  },
+  "slightly greener": {
+    "ja": "少し緑寄りに",
+    "zh-Hans": "往绿方向一点",
+    "zh-Hant": "往綠方向一點"
+  },
+  "slightly more %@": {
+    "ja": "少し%@寄りに",
+    "zh-Hans": "往%@调一点",
+    "zh-Hant": "往%@調一點"
+  },
+  "slightly more magenta": {
+    "ja": "少しマゼンタ寄りに",
+    "zh-Hans": "往紫红方向一点",
+    "zh-Hant": "往紫紅方向一點"
+  },
+  "slightly more vivid": {
+    "ja": "少し鮮やかに",
+    "zh-Hans": "更鲜艳一点",
+    "zh-Hant": "更鮮豔一點"
+  },
+  "slightly paler": {
+    "ja": "少し淡く",
+    "zh-Hans": "更淡一点",
+    "zh-Hant": "更淡一點"
+  },
+  "unchanged": {
+    "ja": "変更なし",
+    "zh-Hans": "不变",
+    "zh-Hant": "不變"
+  },
+  "warmth unchanged": {
+    "ja": "色温度は変更なし",
+    "zh-Hans": "冷暖不变",
+    "zh-Hant": "冷暖不變"
+  },
+  "yellow": {
+    "ja": "黄",
+    "zh-Hans": "黄",
+    "zh-Hant": "黃"
+  },
+  "←/→ adjust external brightness (hold ⇧ for steps of 5)  ·  ⏎ save this point  ·  Esc done  ·  R clear this display’s calibration": {
+    "ja": "←/→ 外部ディスプレイの明るさを調整（⇧ を押しながらで 5 ずつ）  ·  ⏎ このポイントを保存  ·  Esc 完了  ·  R このディスプレイのキャリブレーションを消去",
+    "zh-Hans": "←/→ 调外接亮度（按住 ⇧ 每次 5）  ·  ⏎ 保存这个点  ·  Esc 完成  ·  R 清除这台的校准",
+    "zh-Hant": "←/→ 調整外接螢幕亮度（按住 ⇧ 每次 5）  ·  ⏎ 儲存這個點  ·  Esc 完成  ·  R 清除這台的校正"
+  },
+  "⏎ back  ·  R another run  ·  Esc done": {
+    "ja": "⏎ 戻る  ·  R もう一度  ·  Esc 完了",
+    "zh-Hans": "⏎ 返回  ·  R 再测一轮  ·  Esc 完成",
+    "zh-Hant": "⏎ 返回  ·  R 再測一輪  ·  Esc 完成"
+  },
+  "⏎ save": {
+    "ja": "⏎ 保存",
+    "zh-Hans": "⏎ 保存",
+    "zh-Hant": "⏎ 儲存"
+  },
+  "⏎ save and continue with %@": {
+    "ja": "⏎ 保存して %@ に進む",
+    "zh-Hans": "⏎ 保存并继续%@",
+    "zh-Hant": "⏎ 儲存並繼續%@"
+  },
+  "⚠️ The built-in display is at %ld nit, brighter than the external can reach with this color correction. Different brightness skews color judgments; dim the built-in display with the brightness keys first.": {
+    "ja": "⚠️ 内蔵ディスプレイは現在 %ld nit で、この色補正では外部ディスプレイが同じ明るさまで届きません。明るさが違うと色の判断がずれるため、先に明るさキーで内蔵ディスプレイを暗くしてください。",
+    "zh-Hans": "⚠️ 内屏现在 %ld nit，外屏调色后补不到这么亮，两块屏亮度不同会影响颜色判断。先用亮度键把内屏调暗一些再答题。",
+    "zh-Hant": "⚠️ 內建螢幕目前 %ld nit，外接螢幕調色後無法補到這麼亮，兩塊螢幕亮度不同會影響色彩判斷。請先用亮度鍵把內建螢幕調暗一些再作答。"
+  }
+}

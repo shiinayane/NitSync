@@ -1,114 +1,138 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="Icon/AppIcon-dark.png">
-  <img src="Icon/AppIcon-light.png" width="128" alt="NitSync 图标">
-</picture>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Icon/AppIcon-dark.png">
+    <img src="Icon/AppIcon-light.png" width="128" alt="NitSync icon">
+  </picture>
+</p>
 
-# NitSync
+<h1 align="center">NitSync</h1>
 
-让外接显示器的亮度跟随 MacBook 内屏，包括亮度键、控制中心和自动亮度。按**亮度（nit）**对齐，不是按百分比对齐。
+<p align="center">
+  Make your external monitor follow your MacBook's display brightness, matched in nits rather than percent.
+</p>
 
-- 只在菜单栏放一个图标，没有 HUD，不拦截亮度键，不碰系统 OSD。
-- 从 IO 注册表读取内屏当前的白场亮度（`disp0` 帧缓冲的 `IOMFBBrightnessLevel`，单位 nit）。
-- 自动识别外接屏是 SDR 还是 HDR，菜单里每台显示器后面标出当前模式：
-  - **SDR**：通过 DDC/CI 写显示器背光，按校准把 nit 换算成 DDC 值。菜单显示「SDR · DDC 值」。
-  - **HDR**：信号是 PQ（绝对亮度），显示器锁定自身亮度、忽略 DDC，由 macOS 决定 SDR 白放在多少 nit，也就是系统设置里那条亮度滑块。NitSync 通过 DisplayServices 设置这个值，并从外接屏帧缓冲读回实际 nit 来修正，让它等于内屏的 nit，不需要校准。菜单显示「HDR · nit」。macOS 能给的 SDR 白范围大约是 4–200 nit，内屏更亮时外接屏停在上限。
-- 平滑跟随：内屏亮度变化时（亮度键、控制中心、自动亮度），系统会做约 250 ms 的渐变。系统在渐变开始前会发出亮度变化通知，NitSync 收到后立刻以 120 Hz 采样内屏亮度，让外接屏沿同一条曲线走；亮度键、控制中心、自动亮度都会发这个通知；平时只每秒做一次兜底检查（闲置 CPU 不到 0.1%）。内屏一步跳变时，外接屏会用约 0.2 秒渐变过去。HDR 模式能做到逐帧平滑；SDR 模式受 DDC 速度限制（两次写入间隔至少 60 ms），只能做到每秒十几级。
-- 读取外接显示器的 EDID：按型号和序列号区分显示器，菜单里显示型号；HDR 静态元数据里的亮度用于未校准时的估算。
-- 合盖或内屏休眠时，外接屏保持当前亮度。
-- 唤醒、插拔线、显示器配置变化后会自动重新连接。
+<p align="center">
+  <b>English</b> · <a href="README.ja.md">日本語</a> · <a href="README.zh-Hans.md">简体中文</a>
+</p>
 
-## 构建
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-14%2B-000000?logo=apple" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/Apple%20Silicon-required-555555" alt="Apple Silicon">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license">
+</p>
+
+---
+
+When you press the brightness keys, drag the Control Center slider or let auto-brightness do its thing, only the MacBook's own display changes. NitSync makes the external monitor follow, with the same smooth fade, so both screens stay equally bright. It lives in the menu bar and doesn't intercept keys or draw its own HUD.
+
+## Features
+
+- **Matched in nits.** NitSync reads the built-in panel's actual white level and drives the external monitor to the same luminance, not to the same percentage.
+- **SDR and HDR monitors.** In SDR it sets the monitor's backlight over DDC/CI. In HDR, where the monitor ignores DDC, it sets the SDR white level macOS renders, which is in absolute nits and needs no calibration.
+- **Smooth following.** It wakes on the system's brightness change notification before a fade starts and follows the built-in display's curve at 120 Hz. Idle CPU is under 0.1 %.
+- **Color calibration against the built-in display.** Match the external's white point, three gray levels (tint and lightness) and red/green/blue primaries by eye, using forced-choice questions that are robust to noisy judgments.
+- **Stored in an ICC profile.** Color corrections are written into a profile for the external display, so they apply system-wide and keep working when NitSync isn't running.
+- **Per-monitor.** Monitors are told apart by their EDID, so each keeps its own calibration across ports and reconnects.
+- **Localized** in English, Japanese, Simplified Chinese and Traditional Chinese.
+
+## Requirements
+
+- A Mac with Apple Silicon (DDC/CI goes through the Apple Silicon display pipeline).
+- macOS 14 or later.
+- An external monitor that supports DDC/CI, with DDC/CI enabled in its on-screen menu. In HDR mode DDC is only used to find the monitor.
+
+## Installation
+
+Download `NitSync-<version>.zip` from the [latest release](https://github.com/shiinayane/NitSync/releases/latest), unzip it and move **NitSync.app** to **Applications**. The app is signed with a Developer ID and notarized by Apple.
+
+Open it once; a sun icon appears in the menu bar. Choose **Open at Login** in its menu to start it automatically.
+
+## Usage
+
+The menu shows the built-in display's current luminance and, for each external monitor, whether it's driven in **SDR** (the DDC value it was sent) or **HDR** (the SDR white level in nits).
+
+### Brightness calibration (SDR monitors)
+
+In SDR, NitSync has to translate nits into the monitor's DDC brightness value. Until you calibrate, it estimates from the monitor's EDID.
+
+Choose **Brightness Calibration…**. Every screen shows a white patch of the same physical size on a dark background:
+
+1. Press ←/→ until both patches look equally bright, then press ⏎.
+2. Use the brightness keys to make the built-in display clearly darker (the screen suggests a level), match again and save.
+3. Press Esc.
+
+Points are interpolated in nits; add more if brightness in between still doesn't match. HDR monitors don't need this step.
+
+<p align="center"><img src="docs/brightness-calibration.png" width="720" alt="Brightness calibration screen"></p>
+
+### Color calibration
+
+Two panels built with different technologies can look different even when both claim D65 white, and once white matches, dark grays may still be tinted. Color calibration uses the built-in display as the reference and adjusts the external display to match what *you* see.
+
+Choose **Color Calibration…**, then:
+
+| Key | Measures | Time |
+|---|---|---|
+| **W** | White: warmer/cooler, greener/more magenta | about 1 min |
+| **G** | Grays at 50 %, 25 % and 12 %: tint, and lightness against a white frame | about 4 min |
+| **P** | sRGB red, green and blue: hue and saturation | about 3 min |
+
+Each question is a two-way choice ("Compared with the built-in display, which way does the external's white lean?"), answered with ←/→, or ↓ when you can't tell. Adaptive staircases close in on the match from a random starting side, the patches go dark between questions so you never see which way a color moved, and no numbers are shown while you answer. Every run can be saved or redone. Saved runs are averaged (up to five per item), and later runs are checked against earlier ones. Press ⌫ twice to clear all color calibration.
+
+<p align="center"><img src="docs/color-calibration.png" width="720" alt="Color calibration: a gray level"></p>
+
+This matches the two screens for your eyes. It doesn't make the external display colorimetrically accurate; that needs a colorimeter.
+
+## How it works
+
+- **Built-in luminance.** The built-in panel's framebuffer reports its SDR white level in nits (`IOMFBBrightnessLevel`). macOS's private DisplayServices notifies before a brightness change starts, which wakes NitSync's sampling loop.
+- **SDR.** NitSync writes the monitor's brightness (VCP 0x10) over DDC/CI through `IOAVService`, mapped from nits by your calibration.
+- **HDR.** The signal is PQ-encoded absolute luminance, so the monitor locks its own brightness and macOS decides where SDR white sits. NitSync sets that level through DisplayServices and corrects it from the external framebuffer's reading.
+- **Color.** White and gray corrections go into the profile's `vcgt` table, which macOS loads into the display's gamma table. Primaries go into the profile's colorants, which color management uses. The profile, named "<monitor> (NitSync)", is a copy of the display's factory profile and is stored in `~/Library/ColorSync/Profiles/NitSync/`.
+
+## Building from source
+
+Needs the Xcode command line tools.
 
 ```bash
 ./build.sh
 open build/NitSync.app
 ```
 
-需要 Apple Silicon、macOS 14 以上和 Xcode 命令行工具。
+`build.sh` compiles with `swiftc` and signs ad hoc, so the result only runs on your own Mac. Translations live in `Localization/translations.json`; the build generates the `.strings` files from it and fails if a string is missing or a placeholder doesn't match. The app icon is an Icon Composer document (`Icon/AppIcon.icon`); `Icon/build-icon.sh` rebuilds its compiled form (Xcode 26 or later).
 
-### 分发
-
-`./build.sh` 只做临时签名，只能在本机运行。要给别的 Mac 用，运行：
+### Releasing
 
 ```bash
-./release.sh
+./release.sh            # sign, notarize, staple, zip into dist/
+./release.sh --install  # …and install to /Applications
 ```
 
-它会用钥匙串里的 Developer ID Application 证书签名（启用加强型运行时），提交 Apple 公证，把公证票据装订进 app，生成 `dist/NitSync-<版本>.zip`。加 `--install` 还会安装到「应用程序」并从那里启动。
-
-第一次使用前，需要把公证凭据存进钥匙串（Apple ID 加 App 专用密码，密码在 account.apple.com 的「登录与安全」里生成）：
+`release.sh` uses the first Developer ID Application certificate in your keychain and a notarytool keychain profile named `NitSync`, which you create once:
 
 ```bash
-xcrun notarytool store-credentials NitSync --apple-id <你的 Apple ID> --team-id <团队 ID>
+xcrun notarytool store-credentials NitSync --apple-id <Apple ID> --team-id <Team ID>
 ```
 
-应用图标是 Icon Composer 文档 `Icon/AppIcon.icon`，背景交给系统，会随浅色、深色、着色和透明外观变化。改完图标后运行 `Icon/build-icon.sh`（需要 Xcode 26 以上），它会重新生成 `Resources/` 里的 `Assets.car` 和 `AppIcon.icns`，以及 `Icon/` 里的浅色、深色预览图。这些产物已提交，所以平时构建只需要命令行工具。
+## Uninstalling
 
-## 亮度校准
-
-菜单栏图标 → **亮度校准…**
-
-校准时 NitSync 会接管所有屏幕：深灰背景，正中一块白色，内屏和外接屏上的白块物理尺寸相同（约 9 cm，按 EDID 里的屏幕尺寸换算）。
-
-1. 按 ←/→ 调外接屏亮度（按住 ⇧ 每次 5），直到两块白色看起来一样亮，按 ⏎ 保存。也可以用内屏上的滑块和按钮。
-2. 用键盘的亮度键把内屏调到明显更暗（屏幕上会给出建议亮度），再对齐、保存一次。
-3. 按 Esc 完成。
-
-HDR 模式的显示器不需要校准，校准界面里会说明，调节键对它不起作用。
-
-其他按键：R 连按两次清除当前显示器的校准；接了多台时 Tab 切换要调的那台，没在调的那台白块会变灰。
-
-两个点之间按 nit 线性插值。中间亮度如果仍不一致，可以再补一个点。在相近亮度（±25% 以内）重新保存会覆盖旧的点。
-
-每台显示器各有一套校准，按 EDID 里的厂商、型号和序列号保存，换接口或重新插拔不会丢。
-
-未校准时，按 EDID 中的全屏平均亮度（MaxFALL，没有就用峰值）估算外接屏 100% 时的亮度；EDID 里没有亮度信息时按 250 nit。这些是 HDR 内容的参考值，不是 SDR 白场的实测值，OLED 尤其偏高，所以仍然建议校准。
-
-旧版本保存的单套校准会在第一次启动时迁移给当时连接的第一台显示器。
-
-## 颜色校准
-
-两块屏发光技术不同（内屏和外接屏的光谱不一样），即使都标称 D65，人眼看上去也可能一暖一冷；白色对上了，暗灰也可能还有色差（两块屏各通道的暗部曲线不一样）；外接屏的颜色描述文件是按 EDID 生成的，原色坐标也不一定准。颜色校准以内屏为参考，按你眼睛看到的效果调外接屏。
-
-菜单栏图标 → **颜色校准…**，打开后先显示各项的校准情况。建议顺序：
-
-1. **W 白色**（约 1 分钟）：冷暖、绿紫。
-2. **G 灰阶**（约 4 分钟）：50%、25%、12% 三档灰，每档测完确认后自动进入下一档。灰块外面围一圈白框，除了冷暖和绿紫，还会问「中间的灰对照白框显得更亮还是更暗」：每块屏拿自己的白做参照，比的是灰和白的比例，不受两块屏整体亮度差的影响。
-3. **P 原色**（约 3 分钟）：sRGB 的纯红、纯绿、纯蓝，每种问色相往哪边偏、更鲜艳还是更淡。
-
-答题方式：
-
-- 不用拖滑块，而是回答二选一的问题（例如「和内屏比，外屏的白色更偏黄还是偏蓝？」），拿不准就按「看不出差别」。按键：← / → 选择，↓ 或空格表示看不出差别。
-- 程序根据回答逐步逼近（心理物理学的阶梯法：答案每反转一次，步长减半），取最后几次反转点的平均作为结果。各方向的问题随机穿插，起点也随机，避免被初始值和答题节奏带偏。每题之间色块熄灭半秒，看不到变化方向，眼睛也能重新适应。过程中不显示任何数值。背景是纯黑：两块都是 OLED，黑色在两边完全一样，不会干扰颜色判断。
-- 每轮结束后显示结果，可以保存或重测。每一项分别保存、分别取平均（最多 5 轮）；从第二轮起会和之前的平均比较，差别大就提示多测几轮。换个时间多测几轮会更准。按 ⌫ 两次清除全部颜色校准。
-
-结果保存在哪里：
-
-- 所有颜色校正都写进外接屏的颜色描述文件「AW2725Q (NitSync)」（以你的显示器型号命名）。白点和灰阶写在文件的 `vcgt` 里，系统会自动载入显示器的色调表，对所有画面生效；原色写在文件的原色坐标里，由系统色彩管理生效，只影响经过色彩管理的内容（macOS 界面、浏览器、照片等绝大多数 App；个别绕过色彩管理的游戏、播放器不受影响）。所以**不开 NitSync 也一直有效**。目前只在 HDR 模式下实测过，SDR 应该同样适用。
-- 文件存放在 `~/Library/ColorSync/Profiles/NitSync/`，在「系统设置 → 显示器 → 颜色描述文件」里能看到。你在那里换成别的描述文件，NitSync 不会自动改回来（但之后在 NitSync 里再保存一轮校准，会重新装上它的描述文件）。
-- 校准过程中的预览是 NitSync 临时做的，保存后才写进描述文件。原色保存后会显示一次正常绘制的红绿蓝，用来确认实际效果和预览一致。
-- 清除颜色校准（⌫ 两次），或运行下面的命令，会把显示器换回原来的描述文件并删掉 NitSync 的文件。卸载 NitSync 前建议先运行一次：
+Turn off **Open at Login** and quit NitSync. Then remove the color calibration, which puts each display's original profile back, deletes NitSync's profiles and quits again:
 
 ```bash
-open build/NitSync.app --args --reset-color
+open -a NitSync --args --reset-color
 ```
 
-其他说明：
+Finally move NitSync.app to the Trash. Its settings are in `~/Library/Preferences/local.nitsync.plist`.
 
-- 调白点只能把某个通道调低，外屏会略暗。HDR 模式下 NitSync 运行时会自动把亮度补回来（只在它的描述文件正在使用时）（外屏到 200 nit 上限时就补不了了，校准界面会提示先把内屏调暗）。SDR 模式下不补偿，做完颜色校准后建议重新做一次亮度校准。
-- 这是按你的眼睛对齐两块屏，不是按标准色彩校准；要符合标准需要色度计。
+## Limitations
 
-## 注意
+- NitSync relies on private macOS interfaces (`IOAVService`, DisplayServices, framebuffer registry properties). A macOS update can break it.
+- In HDR, macOS offers SDR white between about 4 and 200 nit; when the built-in display is brighter, the external stays at its maximum.
+- DDC is slow, so following in SDR comes in visible steps of about 60 ms; HDR follows smoothly.
+- If the monitor is in a preset that locks brightness, or another app (Lunar, MonitorControl, BetterDisplay…) also writes DDC, results will fight. Apps that rewrite gamma tables (f.lux…) override the white and gray correction.
+- Primaries only affect color-managed content, which is nearly everything on macOS but not every game or video player.
+- Color calibration has only been tested with an HDR external monitor; multiple external monitors haven't been tested on real hardware.
 
-- HDR 模式下按 nit 直接对齐，OLED 大面积白色时显示器自身的亮度限制（ABL）可能让外接屏看起来偏暗；如果更在意准确，可以关掉 HDR，用 DDC 校准。
-- 白点和灰阶校正通过描述文件载入显示器的色调表，f.lux 等同样改色调表的软件会覆盖它。
-- HDR 模式下 NitSync 会接管外接屏在系统设置里的亮度滑块，手动拖动后会被拉回和内屏一致；要手动调，先在菜单里关掉「跟随内屏亮度」。
-- 不要同时运行 Lunar、MonitorControl、BetterDisplay 等也会写 DDC 的软件。
-- 显示器菜单里要开启 DDC/CI，并且不能处在锁定亮度的预设模式下。
-- 依赖私有接口（IOAVService，包括 `IOAVServiceCopyEDID`；DisplayServices；IO 注册表属性），系统更新后可能失效。
-- 只处理能通过 DDC 找到的外接显示器，HDR 模式也是如此。
-- 读不到 EDID 的显示器共用一套校准；同型号且 EDID 里没有序列号的多台显示器也会被当成一台，共用校准和亮度值。
+## License
 
-## 许可证
-
-MIT，见 [LICENSE](LICENSE)。
+[MIT](LICENSE)

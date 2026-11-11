@@ -16,26 +16,26 @@ enum Primary: String, CaseIterable, Codable, CodingKeyRepresentable {
 
     var name: String {
         switch self {
-        case .red: return "红"
-        case .green: return "绿"
-        case .blue: return "蓝"
+        case .red: return L("red")
+        case .green: return L("green")
+        case .blue: return L("blue")
         }
     }
 
     /// The hue direction called positive: towards this neighbour.
     var positiveHueName: String {
         switch self {
-        case .red: return "橙"
-        case .green: return "黄"
-        case .blue: return "青"
+        case .red: return L("orange")
+        case .green: return L("yellow")
+        case .blue: return L("cyan")
         }
     }
 
     var negativeHueName: String {
         switch self {
-        case .red: return "洋红"
-        case .green: return "青"
-        case .blue: return "紫"
+        case .red: return L("magenta")
+        case .green: return L("cyan")
+        case .blue: return L("purple")
         }
     }
 

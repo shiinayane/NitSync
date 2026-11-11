@@ -25,6 +25,7 @@ open build/NitSync.app --args --reset-color      # 清除颜色校准、换回�
 | 文件 | 作用 |
 |---|---|
 | `main.swift` | AppDelegate、菜单栏和菜单 |
+| `Localization.swift` | `L("English text")` / `L("format %1$@", args…)`：按英文原文查本地化表，缺译文时显示英文 |
 | `SyncEngine.swift` | 采样循环、渐变跟随、按 SDR/HDR 分发；`DDCWriter` 串行化 DDC 写入 |
 | `BuiltinDisplay.swift` | 读内屏 nit（`disp0` 帧缓冲的 `IOMFBBrightnessLevel`） |
 | `DDC.swift` | IOAVService 上的 DDC/CI 读写，读 EDID |
@@ -43,6 +44,15 @@ open build/NitSync.app --args --reset-color      # 清除颜色校准、换回�
 | `CalibrationOverlay+Primaries.swift` | 原色的流程和画面：外屏色块用候选描述文件换算出的设备值、按屏幕当前色彩空间直接画出（不切描述文件） |
 | `Icon/AppIcon.icon` | Icon Composer 文档：`fill` 为 `automatic`（背景由系统按外观提供），两组图层（笔记本在上，显示器在下），每组的 `layers` 里排在前面的在上层。SVG 图层画布 1024×1024，整体用 `translate(29 32)` 居中。太阳是自己画的：SF Symbols 的许可不允许用在应用图标里 |
 | `Icon/build-icon.sh` | `actool` 编译出 `Resources/Assets.car` 和 `AppIcon.icns`（都已提交），再用 Icon Composer 自带的 `ictool` 导出浅色、深色预览图。`ictool` 在 `Icon Composer.app/Contents/Executables/`，`xcrun` 找不到；渲染外观可选 Default、Dark、TintedLight、TintedDark、ClearLight、ClearDark |
+
+## 本地化
+
+- 基础语言英文，另有日文、简体中文、繁体中文。代码里所有界面文字都写成 `L("English text")`，英文原文就是键。
+- 译文在 `Localization/translations.json`（每个键一条，ja / zh-Hans / zh-Hant 并排）。`build.sh` 先跑 `Localization/build-strings.py`：从源码里收集所有 `L("…")` 的键，检查每种语言都有译文、占位符（个数、类型、编号）和键一致，然后生成 `Resources/<语言>.lproj/Localizable.strings`（不提交，已在 `.gitignore`）。缺译文或占位符不对，构建直接失败。
+- 带参数的句子用编号占位符（`%1$@`、`%2$ld`），各语言可以调整顺序。避免英文单复数：计数一律写成「runs so far: %ld」这类形式。英文用美式拼写（color、gray）。
+- 繁体中文用台湾用语：內建螢幕、外接螢幕、校正、描述檔、儲存。日文：内蔵ディスプレイ、外部ディスプレイ、カラープロファイル。
+- 换语言测试：`open -n build/NitSync.app --args -AppleLanguages "(ja)" --calibrate-color`。
+- README 有英文（`README.md`）、日文（`README.ja.md`）、简体中文（`README.zh-Hans.md`）三版，改一版要同步另外两版；截图在 `docs/`，是英文界面。
 
 ## 私有接口与实测事实
 

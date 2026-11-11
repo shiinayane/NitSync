@@ -12,7 +12,7 @@ enum DDC {
 
         /// Calibration key: from the EDID, so it survives reconnects and port changes.
         var key: String { edid?.key ?? "unknown" }
-        var name: String { edid?.name ?? "外接显示器" }
+        var name: String { edid?.name ?? L("External Display") }
     }
 
     static let brightnessVCP: UInt8 = 0x10

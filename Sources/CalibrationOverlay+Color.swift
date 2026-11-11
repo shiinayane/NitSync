@@ -90,9 +90,9 @@ extension CalibrationOverlay {
         engine.setColorCalibration(calibration, for: key)
         pendingRun = nil
         engine.colorPreview = nil
-        let saved = "已保存\(levelName(sessionLevel))，共 \(calibration.runs(at: sessionLevel).count) 轮"
+        let saved = L("Saved %1$@ (runs so far: %2$ld).", levelName(sessionLevel), calibration.runs(at: sessionLevel).count)
         if let next = levelQueue.first {
-            show(flash: saved + "。接下来是\(levelName(next))。")
+            show(flash: saved + " " + L("Next: %@.", levelName(next)))
             startColorSession(level: next, then: Array(levelQueue.dropFirst()))
         } else {
             show(flash: saved)
@@ -110,7 +110,7 @@ extension CalibrationOverlay {
         confirmClear = false
         endColorSession()
         engine.setColorCalibration(ColorCalibration(), for: m.key)
-        show(flash: "已清除 \(m.name) 的颜色校准")
+        show(flash: L("Cleared the color calibration of %@", m.name))
         render()
     }
 
@@ -185,69 +185,69 @@ extension CalibrationOverlay {
         builtinPanel?.innerGray = inner
 
         let multiple = engine.monitors.count > 1
-        let tab = multiple ? "  ·  Tab 换一台" : ""
+        let tab = multiple ? L("  ·  Tab next display") : ""
         var lines: [String] = []
 
         if let m {
             let saved = engine.colorCalibration(for: m.key)
             let what = levelName(sessionLevel)
             if let s = session {
-                var head = "颜色校准 · \(m.name) · \(what)  ·  第 \(s.answered + 1) 题（一轮约 \(s.expectedQuestions) 题）"
-                if !levelQueue.isEmpty { head += "  ·  之后还有 \(levelQueue.count) 档" }
+                var head = L("Color calibration · %1$@ · %2$@  ·  question %3$ld (about %4$@ per run)", m.name, what, s.answered + 1, s.expectedQuestions)
+                if !levelQueue.isEmpty { head += L("  ·  levels left after this: %ld", levelQueue.count) }
                 lines.append(head)
                 lines.append(question(s.axis, level: sessionLevel))
                 if s.answered == 0 {
-                    lines.append("两块屏轮流看，不要盯着一块看太久；拿不准就按 ↓。")
+                    lines.append(L("Look at the two screens in turn rather than staring at one; when unsure, press ↓."))
                 }
-                lines.append("Esc 放弃" + tab)
+                lines.append(L("Esc give up") + tab)
             } else if let run = pendingRun {
-                lines.append("颜色校准 · \(m.name) · \(what)  ·  这一轮完成")
+                lines.append(L("Color calibration · %1$@ · %2$@  ·  run finished", m.name, what))
                 let grey = sessionLevel < 1
-                var result = "这一轮：\(describe(run.shift, grey: grey))。"
+                var result = L("This run: %@.", describe(run.shift, grey: grey))
                 if saved.runs(at: sessionLevel).isEmpty {
-                    result += "\n这是这一档的第一轮。换个时间再测一两轮，平均后更可靠。"
+                    result += "\n" + L("This is the first run for this level. Do another one or two at a different time; the average is more reliable.")
                 } else {
                     result += saved.disagrees(with: run, at: sessionLevel)
-                        ? "和之前的结果差别较大，建议多测几轮再看。"
-                        : "和之前的结果一致。"
-                    result += "\n和之前 \(saved.runs(at: sessionLevel).count) 轮平均后：\(describe(saved.shift(at: sessionLevel, adding: run), grey: grey))。外屏现在显示的就是平均后的效果。"
+                        ? " " + L("Quite different from earlier runs; do a few more before trusting it.")
+                        : " " + L("Consistent with earlier runs.")
+                    result += "\n" + L("Averaged with earlier runs (%1$ld): %2$@. The external display now shows the average.", saved.runs(at: sessionLevel).count, describe(saved.shift(at: sessionLevel, adding: run), grey: grey))
                 }
                 lines.append(result + sdrNote(m))
-                let save = levelQueue.isEmpty ? "⏎ 保存" : "⏎ 保存并继续\(levelName(levelQueue[0]))"
-                lines.append("\(save)  ·  R 重测这一轮  ·  Esc 不保存退出" + tab)
+                let save = levelQueue.isEmpty ? L("⏎ save") : L("⏎ save and continue with %@", levelName(levelQueue[0]))
+                lines.append(save + L("  ·  R redo this run  ·  Esc quit without saving") + tab)
             } else {
-                lines.append("颜色校准 · \(m.name)")
+                lines.append(L("Color calibration · %@", m.name))
                 if confirmClear {
-                    lines.append("再按一次 ⌫，清除 \(m.name) 的全部颜色校准。")
+                    lines.append(L("Press ⌫ again to clear all color calibration of %@.", m.name))
                 } else {
                     lines.append(summary(saved) + (saved.points.isEmpty ? "" : sdrNote(m)))
                 }
-                lines.append("W 测白色（约 1 分钟）  ·  G 测灰阶（\(ColorCalibration.greyLevels.count) 档，约 4 分钟）  ·  P 测原色（约 3 分钟）  ·  ⌫ 清除颜色校准  ·  Esc 完成" + tab)
+                lines.append(L("W white (about 1 min)  ·  G grays (%ld levels, about 4 min)  ·  P primaries (about 3 min)  ·  ⌫ clear color calibration  ·  Esc done", ColorCalibration.greyLevels.count) + tab)
             }
         } else {
-            lines.append("没有找到支持 DDC/CI 的外接显示器。")
-            lines.append("Esc 退出")
+            lines.append(L("No external display with DDC/CI found."))
+            lines.append(L("Esc quit"))
         }
         if let m, session != nil || pendingRun != nil, engine.colorCompensationFallsShort(m.key) {
             let builtin = Int((engine.nits ?? 0).rounded())
-            lines.insert("⚠️ 内屏现在 \(builtin) nit，外屏调色后补不到这么亮，两块屏亮度不同会影响颜色判断。先用亮度键把内屏调暗一些再答题。", at: 1)
+            lines.insert(L("⚠️ The built-in display is at %ld nit, brighter than the external can reach with this color correction. Different brightness skews color judgments; dim the built-in display with the brightness keys first.", builtin), at: 1)
         }
         if let flash { lines.insert(flash, at: 1) }
         builtinPanel?.caption.stringValue = lines.joined(separator: "\n\n")
 
         for (key, panel) in externalPanels {
-            let name = engine.monitors.first { $0.key == key }?.name ?? "外接显示器"
+            let name = engine.monitors.first { $0.key == key }?.name ?? L("External Display")
             panel.surround = 0
             if key == selectedKey {
                 panel.dimmed = false
                 panel.patchGray = patch
                 panel.innerGray = inner
-                panel.caption.stringValue = session != nil ? "\(name)\n\n和内屏比较" : name
+                panel.caption.stringValue = session != nil ? name + "\n\n" + L("Compare with the built-in display") : name
             } else {
                 panel.dimmed = true
                 panel.patchGray = nil
                 panel.innerGray = nil
-                panel.caption.stringValue = "\(name)\n\n按 Tab 切换到这台"
+                panel.caption.stringValue = name + "\n\n" + L("Press Tab to switch to this display")
             }
         }
         builtinPanel?.needsLayout = true
@@ -255,51 +255,55 @@ extension CalibrationOverlay {
     }
 
     private func levelName(_ level: Double) -> String {
-        level >= 1 ? "白色" : "\(Int((level * 100).rounded()))% 灰"
+        level >= 1 ? L("White") : L("%ld%% Gray", Int((level * 100).rounded()))
     }
 
     private func question(_ axis: ColorSession.Axis, level: Double) -> String {
-        let what = level >= 1 ? "白色" : "灰色"
+        let grey = level < 1
         switch axis {
-        case .lightness: return "和内屏比，外屏中间的灰色（对照它周围的白框）显得更亮还是更暗？\n← 更亮        → 更暗        ↓ 看不出差别"
-        case .warmth: return "和内屏比，外屏的\(what)更偏哪边？\n← 偏黄（暖）        → 偏蓝（冷）        ↓ 看不出差别"
-        case .tint: return "和内屏比，外屏的\(what)更偏哪边？\n← 偏绿        → 偏紫红        ↓ 看不出差别"
+        case .lightness: return L("Compared with the built-in display, does the external’s gray (against its white frame) look lighter or darker?\n← Lighter        → Darker        ↓ Can’t tell")
+        case .warmth: return grey
+            ? L("Compared with the built-in display, which way does the external’s gray lean?\n← Yellower (warmer)        → Bluer (cooler)        ↓ Can’t tell")
+            : L("Compared with the built-in display, which way does the external’s white lean?\n← Yellower (warmer)        → Bluer (cooler)        ↓ Can’t tell")
+        case .tint: return grey
+            ? L("Compared with the built-in display, which way does the external’s gray lean?\n← Greener        → More magenta        ↓ Can’t tell")
+            : L("Compared with the built-in display, which way does the external’s white lean?\n← Greener        → More magenta        ↓ Can’t tell")
         }
     }
 
     /// One line per level: what is saved, or that it isn't measured yet.
     private func summary(_ saved: ColorCalibration) -> String {
-        guard !saved.isEmpty else { return "还没有颜色校准。建议顺序：白色、灰阶、原色。" }
+        guard !saved.isEmpty else { return L("No color calibration yet. Suggested order: white, grays, primaries.") }
         let rows = ColorCalibration.levels.map { level -> String in
             let runs = saved.runs(at: level).count
-            guard let shift = saved.shift(at: level) else { return "\(levelName(level))：未测" }
-            return "\(levelName(level))：\(runs) 轮，\(describe(shift, grey: level < 1))"
+            guard let shift = saved.shift(at: level) else { return L("%@: not measured", levelName(level)) }
+            return L("%1$@: %3$@ (runs: %2$ld)", levelName(level), runs, describe(shift, grey: level < 1))
         }
-        let primaries = saved.primaries.map { "原色：\(saved.primaryRuns.count) 轮，\(describe($0))" } ?? "原色：未测"
-        return (rows + [primaries]).joined(separator: "\n") + "\n换个时间再测一轮，平均后会更准。"
+        let primaries = saved.primaries.map { L("%1$@: %3$@ (runs: %2$ld)", L("Primaries"), saved.primaryRuns.count, describe($0)) } ?? L("%@: not measured", L("Primaries"))
+        return (rows + [primaries]).joined(separator: "\n") + "\n" + L("Another run at a different time makes the average more accurate.")
     }
 
-    /// The correction in words, e.g. "调暖约 300 K，往紫红方向一点".
+    /// The correction in words, e.g. "about 300 K warmer, slightly more magenta".
     private func describe(_ shift: WhiteShift, grey: Bool = false) -> String {
         let k = Int((abs(shift.kelvinChange) / 10).rounded() * 10)
-        let warmth = k < 50 ? "冷暖不变" : (shift.mired > 0 ? "调暖约 \(k) K" : "调冷约 \(k) K")
+        let warmth = k < 50 ? L("warmth unchanged") : (shift.mired > 0 ? L("about %ld K warmer", k) : L("about %ld K cooler", k))
         let tint: String
         switch shift.duv {
-        case ..<(-0.003): tint = "往紫红方向较多"
-        case ..<(-0.0008): tint = "往紫红方向一点"
-        case 0.003...: tint = "往绿方向较多"
-        case 0.0008...: tint = "往绿方向一点"
-        default: tint = "无绿紫偏差"
+        case ..<(-0.003): tint = L("noticeably more magenta")
+        case ..<(-0.0008): tint = L("slightly more magenta")
+        case 0.003...: tint = L("noticeably greener")
+        case 0.0008...: tint = L("slightly greener")
+        default: tint = L("no green/magenta change")
         }
-        guard grey else { return "\(warmth)，\(tint)" }
+        guard grey else { return [warmth, tint].joined(separator: L(", ")) }
         let percent = Int((abs(pow(2, shift.lightness) - 1) * 100).rounded())
-        let light = percent < 2 ? "明暗不变" : (shift.lightness > 0 ? "调亮约 \(percent)%" : "调暗约 \(percent)%")
-        return "\(warmth)，\(tint)，\(light)"
+        let light = percent < 2 ? L("lightness unchanged") : (shift.lightness > 0 ? L("about %ld%% lighter", percent) : L("about %ld%% darker", percent))
+        return [warmth, tint, light].joined(separator: L(", "))
     }
 
     /// In SDR the correction lowers the backlit white a little and the brightness mapping
     /// does not make that up, so the brightness calibration should be redone afterwards.
     private func sdrNote(_ m: MonitorInfo) -> String {
-        engine?.isHDR(m.key) == false ? "\nSDR 模式下颜色调整会让外屏略暗，做完后建议重新做一次亮度校准。" : ""
+        engine?.isHDR(m.key) == false ? "\n" + L("In SDR the color correction makes the external slightly darker; redo the brightness calibration afterwards.") : ""
     }
 }

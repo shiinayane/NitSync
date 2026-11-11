@@ -10,10 +10,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let noteLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     /// One line per external monitor, right after `statusLine`.
     private var monitorLines: [NSMenuItem] = []
-    private let syncItem = NSMenuItem(title: "跟随内屏亮度", action: #selector(toggleSync), keyEquivalent: "")
-    private let calibrateItem = NSMenuItem(title: "亮度校准…", action: #selector(openCalibration), keyEquivalent: "")
-    private let colorItem = NSMenuItem(title: "颜色校准…", action: #selector(openColorCalibration), keyEquivalent: "")
-    private let loginItem = NSMenuItem(title: "登录时启动", action: #selector(toggleLogin), keyEquivalent: "")
+    private let syncItem = NSMenuItem(title: L("Follow Built-in Brightness"), action: #selector(toggleSync), keyEquivalent: "")
+    private let calibrateItem = NSMenuItem(title: L("Brightness Calibration…"), action: #selector(openCalibration), keyEquivalent: "")
+    private let colorItem = NSMenuItem(title: L("Color Calibration…"), action: #selector(openColorCalibration), keyEquivalent: "")
+    private let loginItem = NSMenuItem(title: L("Open at Login"), action: #selector(toggleLogin), keyEquivalent: "")
     private var shownSymbol = ""
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             statusLine, noteLine, .separator(),
             syncItem, calibrateItem, colorItem, .separator(),
             loginItem,
-            NSMenuItem(title: "退出 NitSync", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
+            NSMenuItem(title: L("Quit NitSync"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
         ]
         menu.delegate = self
         statusItem.menu = menu
@@ -83,11 +83,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         calibration.refresh()
         guard menuOpen else { return }
 
-        statusLine.title = "内屏 " + (engine.nits.map { String(format: "%.0f nit", $0) } ?? "—")
+        statusLine.title = L("Built-in: %@", engine.nits.map { String(format: "%.0f nit", $0) } ?? "—")
 
         let lines: [String]
         if engine.monitors.isEmpty {
-            lines = ["外接 " + (engine.searching ? "查找中" : "—")]
+            lines = [L("External: %@", engine.searching ? L("searching…") : "—")]
         } else {
             lines = engine.monitors.map { m in
                 if engine.isHDR(m.key) {
@@ -102,13 +102,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let uncalibrated = engine.monitors.filter { !engine.isHDR($0.key) && !engine.calibration(for: $0.key).isCalibrated }
         var note: String?
         if engine.monitorCount == 0 && !engine.searching {
-            note = "没有找到支持 DDC/CI 的外接显示器"
+            note = L("No external display with DDC/CI found")
         } else if !engine.builtinAvailable {
-            note = "内屏关闭或休眠中，外接屏保持当前亮度"
+            note = L("Built-in display is off or asleep; external keeps its brightness")
         } else if uncalibrated.count == 1, engine.monitorCount == 1 {
-            note = "尚未校准，亮度是估算值"
+            note = L("Not calibrated yet; brightness is estimated")
         } else if !uncalibrated.isEmpty {
-            note = uncalibrated.map(\.name).joined(separator: "、") + " 尚未校准，亮度是估算值"
+            note = L("%@: not calibrated yet; brightness is estimated", uncalibrated.map(\.name).joined(separator: L(", ")))
         }
         noteLine.title = note ?? ""
         noteLine.isHidden = note == nil
@@ -146,7 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         } catch {
             let alert = NSAlert()
-            alert.messageText = "无法更改登录项"
+            alert.messageText = L("Couldn’t change the login item")
             alert.informativeText = error.localizedDescription
             alert.runModal()
         }

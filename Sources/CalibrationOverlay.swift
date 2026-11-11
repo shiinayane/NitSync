@@ -58,8 +58,8 @@ final class CalibrationOverlay {
 
     private let slider = NSSlider(value: 50, minValue: 0, maxValue: 100, target: nil, action: nil)
     private let valueLabel = NSTextField(labelWithString: "")
-    private let saveButton = NSButton(title: "保存这个点", target: nil, action: nil)
-    private let doneButton = NSButton(title: "完成", target: nil, action: nil)
+    private let saveButton = NSButton(title: L("Save This Point"), target: nil, action: nil)
+    private let doneButton = NSButton(title: L("Done"), target: nil, action: nil)
     private lazy var controls: NSStackView = makeControls()
 
     var selected: MonitorInfo? { engine?.monitors.first { $0.key == selectedKey } }
@@ -210,7 +210,7 @@ final class CalibrationOverlay {
         var calibration = engine.calibration(for: m.key)
         calibration.add(nits: nits, value: value)
         engine.setCalibration(calibration, for: m.key)
-        show(flash: "已保存：内屏 \(Int(nits.rounded())) nit ↔ \(m.name) \(Int(value))")
+        show(flash: L("Saved: built-in %1$ld nit ↔ %2$@ %3$ld", Int(nits.rounded()), m.name, Int(value)))
         touched = false
         confirmClear = false
         engine.resync()
@@ -225,7 +225,7 @@ final class CalibrationOverlay {
         }
         confirmClear = false
         engine.setCalibration(Calibration(), for: m.key)
-        show(flash: "已清除 \(m.name) 的校准")
+        show(flash: L("Cleared the calibration of %@", m.name))
         touched = false
         engine.resync()
     }
@@ -327,9 +327,9 @@ final class CalibrationOverlay {
         valueLabel.stringValue = "\(Int(value))"
         saveButton.isEnabled = m != nil && engine.builtinAvailable && !selectedIsHDR
 
-        let keys = "←/→ 调外接亮度（按住 ⇧ 每次 5）  ·  ⏎ 保存这个点  ·  Esc 完成  ·  R 清除这台的校准"
-            + (multiple ? "  ·  Tab 换一台" : "")
-        let builtinLine = "内屏 " + (engine.nits.map { "\(Int($0.rounded())) nit" } ?? "—")
+        let keys = L("←/→ adjust external brightness (hold ⇧ for steps of 5)  ·  ⏎ save this point  ·  Esc done  ·  R clear this display’s calibration")
+            + (multiple ? L("  ·  Tab next display") : "")
+        let builtinLine = L("Built-in: %@", engine.nits.map { "\(Int($0.rounded())) nit" } ?? "—")
         let status: String
         if let m {
             status = builtinLine + "  ·  \(m.name) " + reading(for: m.key)
@@ -340,12 +340,12 @@ final class CalibrationOverlay {
 
         for (key, panel) in externalPanels {
             let monitor = engine.monitors.first { $0.key == key }
-            let name = monitor?.name ?? "外接显示器"
+            let name = monitor?.name ?? L("External Display")
             if key == selectedKey {
                 panel.caption.stringValue = "\(name)  " + reading(for: key) + "\n\n" + (flash ?? hint())
                 panel.dimmed = false
             } else {
-                panel.caption.stringValue = "\(name)\n\n按 Tab 切换到这台"
+                panel.caption.stringValue = name + "\n\n" + L("Press Tab to switch to this display")
                 panel.dimmed = true
             }
         }
@@ -361,29 +361,28 @@ final class CalibrationOverlay {
 
     private func hint() -> String {
         guard let engine else { return "" }
-        guard let m = selected else { return "没有找到支持 DDC/CI 的外接显示器。" }
-        guard engine.builtinAvailable, let nits = engine.nits else { return "内屏关闭或休眠中，没法校准。" }
-        if confirmClear { return "再按一次 R，清除 \(m.name) 的全部校准点。" }
+        guard let m = selected else { return L("No external display with DDC/CI found.") }
+        guard engine.builtinAvailable, let nits = engine.nits else { return L("The built-in display is off or asleep, so calibration isn’t possible.") }
+        if confirmClear { return L("Press R again to clear all calibration points of %@.", m.name) }
         if selectedIsHDR {
-            return "\(m.name) 开着 HDR：系统直接把它的白色设成和内屏一样的 nit，不需要校准。\n"
-                + "如果两块白色看起来还是不一样，可以关掉这台的 HDR，改用 DDC 校准。"
+            return L("%@ is in HDR: its white is set to the same nits as the built-in display, so no calibration is needed.\nIf the two whites still look different, turn off HDR for this display and calibrate over DDC instead.", m.name)
         }
 
         let points = engine.calibration(for: m.key).points
         let near = points.first { abs(log($0.nits / nits)) < log(1.25) }
-        let replaceNote = near.map { "（现在的内屏亮度和已保存的 \(Int($0.nits.rounded())) nit 很接近，保存会替换它。）" } ?? ""
+        let replaceNote = near.map { " " + L("(The built-in brightness is close to the saved %ld nit point; saving will replace it.)", Int($0.nits.rounded())) } ?? ""
 
         switch points.count {
         case 0:
-            return "第 1 步：调到两块白色看起来一样亮，按 ⏎ 保存。"
+            return L("Step 1: adjust until both whites look equally bright, then press ⏎ to save.")
         case 1:
             let p = points[0].nits
             let direction = p >= 100
-                ? "明显更暗（建议 \(Int((p * 0.5).rounded())) nit 左右）"
-                : "明显更亮（建议 \(Int((p * 2).rounded())) nit 左右）"
-            return "第 2 步：用键盘的亮度键把内屏调到\(direction)，再对齐、保存。" + replaceNote
+                ? L("Step 2: use the keyboard’s brightness keys to make the built-in display clearly darker (around %ld nit), then match and save again.", Int((p * 0.5).rounded()))
+                : L("Step 2: use the keyboard’s brightness keys to make the built-in display clearly brighter (around %ld nit), then match and save again.", Int((p * 2).rounded()))
+            return direction + replaceNote
         default:
-            return "已保存 \(points.count) 个点。中间亮度还不一致的话可以再补一个点，否则按 Esc 完成。" + replaceNote
+            return L("Points saved: %ld. If brightness in between still doesn’t match, add another point; otherwise press Esc to finish.", points.count) + replaceNote
         }
     }
 }
