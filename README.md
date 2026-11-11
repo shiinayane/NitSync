@@ -26,6 +26,22 @@ open build/NitSync.app
 
 需要 Apple Silicon、macOS 14 以上和 Xcode 命令行工具。
 
+### 分发
+
+`./build.sh` 只做临时签名，只能在本机运行。要给别的 Mac 用，运行：
+
+```bash
+./release.sh
+```
+
+它会用钥匙串里的 Developer ID Application 证书签名（启用加强型运行时），提交 Apple 公证，把公证票据装订进 app，生成 `dist/NitSync-<版本>.zip`。加 `--install` 还会安装到「应用程序」并从那里启动。
+
+第一次使用前，需要把公证凭据存进钥匙串（Apple ID 加 App 专用密码，密码在 account.apple.com 的「登录与安全」里生成）：
+
+```bash
+xcrun notarytool store-credentials NitSync --apple-id <你的 Apple ID> --team-id <团队 ID>
+```
+
 应用图标是 Icon Composer 文档 `Icon/AppIcon.icon`，背景交给系统，会随浅色、深色、着色和透明外观变化。改完图标后运行 `Icon/build-icon.sh`（需要 Xcode 26 以上），它会重新生成 `Resources/` 里的 `Assets.car` 和 `AppIcon.icns`，以及 `Icon/` 里的浅色、深色预览图。这些产物已提交，所以平时构建只需要命令行工具。
 
 ## 亮度校准

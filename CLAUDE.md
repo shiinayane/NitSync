@@ -16,6 +16,8 @@ open build/NitSync.app --args --reset-color      # 清除颜色校准、换回�
 
 版本号用 1.0.0 格式（语义化版本），写在 `Info.plist` 的 `CFBundleShortVersionString`，发布时打 `v1.0.0` 这样的 git 标签；`CFBundleVersion` 是构建号，每次发布加 1。
 
+分发用 `./release.sh`：Developer ID 签名（`--options runtime --timestamp`）→ `notarytool submit --wait`（钥匙串配置名默认 `NitSync`，`NOTARY_PROFILE` 可改）→ `stapler staple` → `dist/NitSync-<版本>.zip`；`--install` 再装到 /Applications。签名身份自动取钥匙串里第一个 Developer ID Application（`SIGN_IDENTITY` 可改）。加强型运行时下实测正常：dlopen 系统私有框架（IOKit 的 IOAVService、DisplayServices）、ColorSync、IOKit 读写都不需要额外的 entitlement。
+
 没有 Xcode 工程，也没有自动测试。改完至少要 `./build.sh` 无错误无警告，再在实机上验证（见下文「验证方法」）。重新运行前先 `pkill -x NitSync`。
 
 ## 结构
