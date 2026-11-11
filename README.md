@@ -52,3 +52,7 @@ HDR 模式的显示器不需要校准，校准界面里会说明，调节键对�
 - 依赖私有接口（IOAVService，包括 `IOAVServiceCopyEDID`；DisplayServices；IO 注册表属性），系统更新后可能失效。
 - 只处理能通过 DDC 找到的外接显示器，HDR 模式也是如此。
 - 读不到 EDID 的显示器共用一套校准；同型号且 EDID 里没有序列号的多台显示器也会被当成一台，共用校准和亮度值。
+
+## 许可证
+
+MIT，见 [LICENSE](LICENSE)。

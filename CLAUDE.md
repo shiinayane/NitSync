@@ -10,6 +10,8 @@ open build/NitSync.app
 open build/NitSync.app --args --calibrate    # 启动后直接进入全屏校准
 ```
 
+版本号用 1.0.0 格式（语义化版本），写在 `Info.plist` 的 `CFBundleShortVersionString`，发布时打 `v1.0.0` 这样的 git 标签；`CFBundleVersion` 是构建号，每次发布加 1。
+
 没有 Xcode 工程，也没有自动测试。改完至少要 `./build.sh` 无错误无警告，再在实机上验证（见下文「验证方法」）。重新运行前先 `pkill -x NitSync`。
 
 ## 结构
