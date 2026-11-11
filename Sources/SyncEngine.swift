@@ -74,10 +74,19 @@ enum DriveMode: Equatable {
 final class SyncEngine {
     /// Sampling while anything moves: fast enough to trace the system's ~250 ms brightness
     /// fade frame by frame, so external monitors follow the same curve.
-    private static let activeInterval = 1.0 / 60
-    /// Sampling when nothing moves; also bounds how late a change is noticed. Each sample is
-    /// one registry property read, so 20 Hz costs next to nothing.
-    private static let idleInterval = 0.05
+    /// 120 Hz: measured against 60 and 240 Hz, it gives the external ~40 % more steps per fade
+    /// than 60 Hz, and 240 Hz adds nothing (the external takes ~21 updates per fade either way).
+    /// Hidden setting `activeRate` (Hz) overrides it, for measuring other rates.
+    private let activeInterval = 1.0 / max(10, min(480, UserDefaults.standard.object(forKey: "activeRate") as? Double ?? 120))
+    /// Sampling when nothing moves. With DisplayServices' change notification waking the loop
+    /// before a fade starts, this is only a fallback for changes that don't announce
+    /// themselves, so it can be slow; without the notification it also sets how late a
+    /// change is noticed (a late start shows as a catch-up jump on the external).
+    private var idleInterval = 0.05
+    /// Set by a brightness change notification: stay quick until then.
+    private var wakeUntil = Date.distantPast
+    /// Each wake starts a new sampling chain; older chains stop at their next step.
+    private var tickGeneration = 0
     /// Time constant of the easing toward the built-in level. The system's fade already arrives
     /// as a smooth curve, so this only rounds off the end and adds ~20 ms of lag.
     private static let followTime = 0.02
@@ -154,6 +163,9 @@ final class SyncEngine {
     private let colors = ColorCorrector()
     /// Monitors whose NitSync profile is the one in use (checked with the modes, every 0.5 s).
     private var profileActive: Set<String> = []
+    private var lastBlackReload = Date.distantPast
+    private var lastProfileCheck = Date.distantPast
+    private var lastBlackCheck = Date.distantPast
 
     /// Colour correction per monitor key, matched by eye against the built-in panel.
     /// Saved corrections live in each display's ICC profile (`DisplayProfiles`).
@@ -185,9 +197,11 @@ final class SyncEngine {
               let profile = DisplayProfiles.makeProfile(for: id, name: "\(monitor.name) (NitSync)", table: table, colourants: colourants)
         else {
             DisplayProfiles.remove(key: key, on: id)
+            refreshProfileActive()
             return
         }
         DisplayProfiles.install(profile, key: key, on: id)
+        refreshProfileActive()
     }
 
     /// Removes every colour calibration and puts the displays' original profiles back
@@ -284,7 +298,23 @@ final class SyncEngine {
             DispatchQueue.main.async { engine.scheduleRediscover(after: 2) }
         }, Unmanaged.passUnretained(self).toOpaque())
 
+        // Keys, Control Center and auto-brightness all announce changes (measured), so the idle
+        // loop only has the slow checks left: HDR on/off, profile switches, black tables.
+        if BuiltinDisplay.observeBrightnessChanges({ [weak self] in self?.wake() }) {
+            idleInterval = 1
+        }
+
         refreshHardware()
+        tick()
+    }
+
+    /// The built-in panel is about to change: sample fast from now on. Auto-brightness sends
+    /// one of these about every 10 ms while it ramps, so only an idle loop is restarted (to
+    /// start right away); a fast one just stays fast for longer.
+    private func wake() {
+        wakeUntil = Date().addingTimeInterval(0.6)
+        guard !wasActive else { return }
+        tickGeneration += 1
         tick()
     }
 
@@ -387,7 +417,39 @@ final class SyncEngine {
             hdrFramebuffers[id] = nil
         }
         hdrNits = nits
+        // Both checks ask other processes (ColorSync) or read whole tables, so they run less
+        // often than the mode check: profiles change rarely (and NitSync's own installs
+        // refresh this at once), and a black table is caught within a second.
+        let now = Date()
+        if now.timeIntervalSince(lastProfileCheck) >= 5 { refreshProfileActive() }
+        if now.timeIntervalSince(lastBlackCheck) >= 1 {
+            lastBlackCheck = now
+            rescueBlackTables()
+        }
+    }
+
+    private func refreshProfileActive() {
+        lastProfileCheck = Date()
         profileActive = Set(Screens.monitorKeys(monitors).filter { DisplayProfiles.isInstalled($0.key) }.map(\.value))
+    }
+
+    /// Safety net: a gamma table that has collapsed to (nearly) all zeros shows a black screen.
+    /// It happened once after a test tool changed the HDR level and the table together and
+    /// quit; reloading the display's profile fixed it. Never acts during a preview, and at
+    /// most once every 10 s.
+    private func rescueBlackTables() {
+        guard colorPreview == nil, Date().timeIntervalSince(lastBlackReload) > 10 else { return }
+        for id in Screens.monitorKeys(monitors).keys {
+            let capacity = CGDisplayGammaTableCapacity(id)
+            var r = [CGGammaValue](repeating: 1, count: Int(capacity)), g = r, b = r
+            var count: UInt32 = 0
+            guard CGGetDisplayTransferByTable(id, capacity, &r, &g, &b, &count) == .success, count > 1 else { continue }
+            let top = Int(count) - 1
+            if max(r[top], g[top], b[top]) < 0.05 {
+                lastBlackReload = Date()
+                DisplayProfiles.reload(id)
+            }
+        }
     }
 
     private func tick(reschedule: Bool = true) {
@@ -423,7 +485,7 @@ final class SyncEngine {
             refreshHardware()
         }
 
-        let active = easing || now.timeIntervalSince(lastNitsChange) < 0.5
+        let active = easing || now.timeIntervalSince(lastNitsChange) < 0.5 || now < wakeUntil
         // The menu and calibration screen don't need every frame.
         if now.timeIntervalSince(lastUpdate) >= (active ? 0.1 : 1) || active != wasActive || !reschedule {
             lastUpdate = now
@@ -432,8 +494,10 @@ final class SyncEngine {
         wasActive = active
 
         guard reschedule else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + (active ? Self.activeInterval : Self.idleInterval)) { [weak self] in
-            self?.tick()
+        let generation = tickGeneration
+        DispatchQueue.main.asyncAfter(deadline: .now() + (active ? activeInterval : idleInterval)) { [weak self] in
+            guard let self, self.tickGeneration == generation else { return }
+            self.tick()
         }
     }
 

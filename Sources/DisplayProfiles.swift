@@ -95,6 +95,17 @@ enum DisplayProfiles {
         return true
     }
 
+    /// Makes the system load the display's profile again (switching to the factory profile
+    /// and back), which also rebuilds the gamma table it falls back to. Restoring ColorSync
+    /// settings alone did not help when that fallback had become all zeros.
+    static func reload(_ id: CGDirectDisplayID) {
+        guard let (slot, factoryURL) = factory(id) else { return }
+        let current = customProfile(id)
+        _ = setCustom(factoryURL as CFURL, profileID: slot, on: id)
+        _ = setCustom((current ?? factoryURL) as CFURL, profileID: slot, on: id)
+        if current == nil { _ = setCustom(kCFNull!, profileID: slot, on: id) }
+    }
+
     /// Puts back the profile entry that was there before NitSync's, and deletes its files.
     static func remove(key: String, on id: CGDirectDisplayID?) {
         var originals = UserDefaults.standard.dictionary(forKey: originalsKey) as? [String: String] ?? [:]

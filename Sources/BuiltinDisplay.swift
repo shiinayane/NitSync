@@ -38,4 +38,26 @@ enum BuiltinDisplay {
         let nits = value.doubleValue / 65536
         return nits > 0.05 ? nits : nil
     }
+
+    // MARK: - Change notifications
+
+    private typealias Callback = @convention(c) (CFNotificationCenter?, UnsafeMutableRawPointer?, CFNotificationName?, UnsafeRawPointer?, CFDictionary?) -> Void
+    private typealias Register = @convention(c) (CGDirectDisplayID, UnsafeRawPointer?, Callback) -> Int32
+    private static var onChange: (() -> Void)?
+
+    /// Calls `handler` (on the main queue) whenever the system is about to change the built-in
+    /// panel's brightness: keys, Control Center, or anything else that goes through
+    /// DisplayServices. Measured: it arrives about 1 ms after the request and 10–20 ms before
+    /// `IOMFBBrightnessLevel` starts to move, so sampling can speed up before the fade.
+    /// Returns false if the private call is missing.
+    static func observeBrightnessChanges(_ handler: @escaping () -> Void) -> Bool {
+        guard let id = displayID(),
+              let lib = dlopen("/System/Library/PrivateFrameworks/DisplayServices.framework/DisplayServices", RTLD_NOW),
+              let symbol = dlsym(lib, "DisplayServicesRegisterForBrightnessChangeNotifications") else { return false }
+        onChange = handler
+        let register = unsafeBitCast(symbol, to: Register.self)
+        return register(id, UnsafeRawPointer(bitPattern: UInt(id)), { _, _, _, _, _ in
+            DispatchQueue.main.async { BuiltinDisplay.onChange?() }
+        }) == 0
+    }
 }

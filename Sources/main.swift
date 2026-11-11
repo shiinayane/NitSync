@@ -1,7 +1,7 @@
 import AppKit
 import ServiceManagement
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let engine = SyncEngine()
     private let calibration = CalibrationOverlay()
     private var statusItem: NSStatusItem!
@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             loginItem,
             NSMenuItem(title: "退出 NitSync", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"),
         ]
+        menu.delegate = self
         statusItem.menu = menu
 
         calibration.engine = engine
@@ -63,12 +64,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// The menu's lines are only rebuilt while it is open (or about to open).
+    private var menuOpen = false
+
+    func menuWillOpen(_ menu: NSMenu) {
+        menuOpen = true
+        refresh()
+    }
+
+    func menuDidClose(_ menu: NSMenu) { menuOpen = false }
+
     private func refresh() {
         let symbol = engine.enabled ? "sun.max" : "sun.min"
         if symbol != shownSymbol {
             shownSymbol = symbol
             statusItem.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "NitSync")
         }
+        calibration.refresh()
+        guard menuOpen else { return }
 
         statusLine.title = "内屏 " + (engine.nits.map { String(format: "%.0f nit", $0) } ?? "—")
 
@@ -102,7 +115,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         syncItem.state = engine.enabled ? .on : .off
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        calibration.refresh()
     }
 
     private func setMonitorLines(_ titles: [String]) {
