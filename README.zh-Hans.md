@@ -116,7 +116,7 @@ xcrun notarytool store-credentials NitSync --apple-id <Apple ID> --team-id <团�
 
 ## 卸载
 
-先关掉 **登录时启动** 并退出 NitSync。然后清除颜色校准：它会把各显示器换回原来的描述文件，删除 NitSync 的描述文件，然后自动退出。
+先关掉 **登录时启动** 并退出 NitSync。然后在校准过的显示器都连接着的情况下清除颜色校准：它会把各显示器换回原来的描述文件，删除 NitSync 的描述文件，然后自动退出。
 
 ```bash
 open -a NitSync --args --reset-color

@@ -234,6 +234,7 @@ final class CalibrationOverlay {
         guard let engine, engine.monitors.count > 1 else { return }
         let keys = engine.monitors.map(\.key)
         let next = keys[((keys.firstIndex { $0 == selectedKey } ?? -1) + 1) % keys.count]
+        guard next != selectedKey else { return }
         if touched {
             touched = false
             engine.resync()
@@ -260,11 +261,16 @@ final class CalibrationOverlay {
     // MARK: - Input
 
     private func handle(_ event: NSEvent) -> Bool {
+        // ⌘-shortcuts aren't ours (⌘R must not start clearing).
+        if !event.modifierFlags.intersection([.command, .control, .option]).isEmpty { return false }
         if mode == .color { return handleColor(event) }
         let step: Double = event.modifierFlags.contains(.shift) ? 5 : 1
         switch event.keyCode {
-        case 123, 125: setValue(value - step)          // ← ↓
+        case 123, 125: setValue(value - step)          // ← ↓ (held: keeps stepping)
         case 124, 126: setValue(value + step)          // → ↑
+        // Everything else acts once per press: a held key must not confirm its own "press
+        // again" (clearing) or save twice.
+        case _ where event.isARepeat: break
         case 36, 76: save()                            // return, enter
         case 53: close()                               // esc
         case 48: selectNext()                          // tab

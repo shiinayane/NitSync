@@ -18,6 +18,11 @@ LANGUAGES = ["ja", "zh-Hans", "zh-Hant"]
 SPEC = re.compile(r"%(?:(\d+)\$)?(@|ld|d|f|\.\d+f|%)")
 
 
+def unsupported(text):
+    """A % that isn't one of the specs above (e.g. %lld, %s, a lone %): not checked, so refused."""
+    return re.sub(SPEC.pattern, "", text).count("%") > 0
+
+
 def placeholders(text):
     found = []
     for i, m in enumerate(m for m in SPEC.finditer(text) if m.group(2) != "%"):
@@ -34,10 +39,17 @@ def source_keys():
     return keys
 
 
+def escape(text):
+    """A translation in .strings syntax. translations.json keeps .strings escapes (\\n) as
+    they are, so only bare double quotes need escaping."""
+    return re.sub(r'(?<!\\)"', '\\"', text)
+
+
 def strings_line(key, value):
-    def quote(s):
-        return '"' + s.replace('"', '\\"') + '"'
-    return f"{quote(key)} = {quote(value)};\n"
+    # Keys are copied from Swift literals, so they're already escaped the way .strings wants
+    # (\n, \", \\).
+    return f'"{key}" = "{value}";\n'
+
 
 
 def main():
@@ -48,8 +60,12 @@ def main():
         if key not in table:
             errors.append(f"missing translation: {key!r}")
             continue
+        if unsupported(key):
+            errors.append(f"unsupported format specifier: {key!r}")
         for lang in LANGUAGES:
             value = table[key].get(lang)
+            if value and unsupported(value):
+                errors.append(f"unsupported format specifier in {lang}: {value!r}")
             if not value:
                 errors.append(f"missing {lang}: {key!r}")
             elif placeholders(value) != placeholders(key):
@@ -63,7 +79,7 @@ def main():
     for lang in ["en"] + LANGUAGES:
         folder = ROOT / "Resources" / f"{lang}.lproj"
         folder.mkdir(parents=True, exist_ok=True)
-        lines = [strings_line(k, k if lang == "en" else table[k][lang]) for k in keys]
+        lines = [strings_line(k, k if lang == "en" else escape(table[k][lang])) for k in keys]
         (folder / "Localizable.strings").write_text(header + "".join(lines))
     note = f" ({len(unused)} unused entries in translations.json)" if unused else ""
     print(f"Localized {len(keys)} strings into en, {', '.join(LANGUAGES)}{note}")

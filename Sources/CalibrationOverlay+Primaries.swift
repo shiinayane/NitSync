@@ -11,8 +11,13 @@ import simd
 /// primaries into the display's profile, after which every app shows the change.
 extension CalibrationOverlay {
     func startPrimarySession() {
-        guard let engine, let key = selectedKey,
-              let id = Screens.monitorKeys(engine.monitors).first(where: { $0.value == key })?.key,
+        guard let engine, let key = selectedKey else { return }
+        guard engine.builtinAvailable, builtinPanel != nil else {
+            show(flash: L("The built-in display is off or asleep, so calibration isn’t possible."))
+            render()
+            return
+        }
+        guard let id = Screens.monitorKeys(engine.monitors).first(where: { $0.value == key })?.key,
               let data = DisplayProfiles.factoryProfileData(id),
               let colourants = PrimaryMath.colourants(ofICC: data),
               let active = externalPanels[key]?.window?.screen?.colorSpace?.cgColorSpace else {
@@ -149,7 +154,7 @@ extension CalibrationOverlay {
                 lines.append(L("Compared with the built-in display, is the external’s %@ more vivid or paler?\n← More vivid        → Paler        ↓ Can’t tell", p.name))
             }
             if s.answered == 0 { lines.append(L("The color changes with each question. Look at the two screens in turn; when unsure, press ↓.")) }
-            lines.append(L("Esc give up") + tab)
+            lines.append(L("Esc give up"))
         } else if let run = pendingPrimary {
             let saved = engine.colorCalibration(for: m.key)
             lines.append(L("Color calibration · %1$@ · %2$@  ·  run finished", m.name, L("Primaries")))
@@ -161,7 +166,7 @@ extension CalibrationOverlay {
                 result += "\n" + L("Averaged with earlier runs (%1$ld): %2$@.", saved.primaryRuns.count, describe(saved.primaries(adding: run)))
             }
             lines.append(result + "\n" + L("Saving writes this into the external display’s color profile; color-managed apps will show colors with the new primaries."))
-            lines.append(L("⏎ save") + L("  ·  R redo this run  ·  Esc quit without saving") + tab)
+            lines.append(L("⏎ save") + L("  ·  R redo this run  ·  Esc quit without saving"))
         }
         if let flash { lines.insert(flash, at: 1) }
 

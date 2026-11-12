@@ -116,7 +116,7 @@ xcrun notarytool store-credentials NitSync --apple-id <Apple ID> --team-id <Team
 
 ## Uninstalling
 
-Turn off **Open at Login** and quit NitSync. Then remove the color calibration, which puts each display's original profile back, deletes NitSync's profiles and quits again:
+Turn off **Open at Login** and quit NitSync. Then, with the calibrated displays connected, remove the color calibration, which puts each display's original profile back, deletes NitSync's profiles and quits again:
 
 ```bash
 open -a NitSync --args --reset-color

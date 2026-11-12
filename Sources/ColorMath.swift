@@ -91,7 +91,9 @@ enum ColorMath {
         let inverse = m.inverse
         let base = inverse * xyz(whiteXY(.zero))
         let target = inverse * xyz(whiteXY(shift))
-        let g = target / base
+        // A shift beyond the display's gamut would ask for a negative channel; keep every gain
+        // a small positive number so the table stays a proper (if extreme) curve.
+        let g = simd_max(target / base, SIMD3(repeating: 0.01))
         return g / g.max()
     }
 
@@ -119,8 +121,15 @@ enum ColorMath {
     /// (returned as `luminance`).
     static func table(points: [ColorPoint], primaries m: double3x3, count n: Int)
         -> (r: [Float], g: [Float], b: [Float], luminance: Double)? {
-        let sorted = points.sorted { $0.level < $1.level }
-        guard let top = sorted.last, n > 1, sorted.contains(where: { $0.shift != .zero }) else { return nil }
+        var sorted = points.sorted { $0.level < $1.level }
+        guard let highest = sorted.last, n > 1, sorted.contains(where: { $0.shift != .zero }) else { return nil }
+        // Without a white run, white keeps the highest grey's colour but not its lightness:
+        // white is the reference the greys' lightness is judged against (the white frame), so
+        // it must stay put, and the change fades out towards it like between two levels.
+        if highest.level < 1 {
+            sorted.append(ColorPoint(level: 1, shift: WhiteShift(mired: highest.shift.mired, duv: highest.shift.duv, lightness: 0)))
+        }
+        let top = sorted[sorted.count - 1]
 
         func lumaGains(_ shift: WhiteShift) -> SIMD3<Double> {
             let g = gains(for: shift, primaries: m)

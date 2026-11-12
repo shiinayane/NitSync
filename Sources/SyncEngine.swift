@@ -128,7 +128,7 @@ final class SyncEngine {
     }
 
     private var lastNitsChange = Date.distantPast
-    private var lastTick = Date()
+    private var lastTick = SyncEngine.clock()
     private var lastModeCheck = Date.distantPast
     private var lastUpdate = Date.distantPast
     private var wasActive = false
@@ -166,6 +166,12 @@ final class SyncEngine {
     private var lastBlackReload = Date.distantPast
     private var lastProfileCheck = Date.distantPast
     private var lastBlackCheck = Date.distantPast
+    private var blackSeen = Set<CGDirectDisplayID>()
+    private var observingBrightness = false
+
+    /// The loop's clock: monotonic (uptime), so a wall-clock change can't produce a negative or
+    /// huge time step, or freeze the throttles.
+    private static func clock() -> Date { Date(timeIntervalSinceReferenceDate: ProcessInfo.processInfo.systemUptime) }
 
     /// Colour correction per monitor key, matched by eye against the built-in panel.
     /// Saved corrections live in each display's ICC profile (`DisplayProfiles`).
@@ -193,25 +199,36 @@ final class SyncEngine {
         let colourants = calibration.primaries.flatMap { shifts in
             DisplayProfiles.factoryProfileData(id).flatMap(PrimaryMath.colourants(ofICC:)).map { PrimaryMath.colourants($0, shifts: shifts) }
         }
-        guard table != nil || colourants != nil,
-              let profile = DisplayProfiles.makeProfile(for: id, name: "\(monitor.name) (NitSync)", table: table, colourants: colourants)
-        else {
+        guard table != nil || colourants != nil else {
             DisplayProfiles.remove(key: key, on: id)
             refreshProfileActive()
             return
         }
-        DisplayProfiles.install(profile, key: key, on: id)
+        // Building can fail when the display's device info isn't ready yet; then keep whatever
+        // is installed (the next reconnect or save tries again) rather than remove it.
+        if let profile = DisplayProfiles.makeProfile(for: id, name: "\(monitor.name) (NitSync)", table: table, colourants: colourants),
+           !DisplayProfiles.install(profile, key: key, on: id) {
+            NSLog("NitSync: could not install the color profile for %@", key)
+        }
         refreshProfileActive()
     }
 
     /// Removes every colour calibration and puts the displays' original profiles back
     /// (`--reset-color`, e.g. before deleting NitSync).
-    func resetAllColor() {
+    /// Returns the keys left alone because their display isn't connected (their profile entry
+    /// can only be put back while it is).
+    func resetAllColor() -> [String] {
         let keys = Screens.monitorKeys(monitors)
-        for key in Set(colorCalibrations.keys).union((defaults.dictionary(forKey: "originalDisplayProfiles") ?? [:]).keys) {
-            colorCalibrations[key] = nil
-            DisplayProfiles.remove(key: key, on: keys.first { $0.value == key }?.key)
+        let installed = Set((defaults.dictionary(forKey: "originalDisplayProfiles") ?? [:]).keys)
+        var skipped: [String] = []
+        for key in Set(colorCalibrations.keys).union(installed).sorted() {
+            if DisplayProfiles.remove(key: key, on: keys.first { $0.value == key }?.key) || !installed.contains(key) {
+                colorCalibrations[key] = nil
+            } else {
+                skipped.append(key)
+            }
         }
+        return skipped
     }
 
     /// At launch and after reconnecting: install profiles for corrections saved before they
@@ -300,19 +317,26 @@ final class SyncEngine {
 
         // Keys, Control Center and auto-brightness all announce changes (measured), so the idle
         // loop only has the slow checks left: HDR on/off, profile switches, black tables.
-        if BuiltinDisplay.observeBrightnessChanges({ [weak self] in self?.wake() }) {
-            idleInterval = 1
-        }
-
+        observeBrightnessChanges()
         refreshHardware()
         tick()
+    }
+
+    /// Registers for the built-in's brightness announcements; needs the built-in online, so
+    /// after launching in clamshell mode it's retried on every rediscovery.
+    private func observeBrightnessChanges() {
+        guard !observingBrightness else { return }
+        if BuiltinDisplay.observeBrightnessChanges({ [weak self] in self?.wake() }) {
+            observingBrightness = true
+            idleInterval = 1
+        }
     }
 
     /// The built-in panel is about to change: sample fast from now on. Auto-brightness sends
     /// one of these about every 10 ms while it ramps, so only an idle loop is restarted (to
     /// start right away); a fast one just stays fast for longer.
     private func wake() {
-        wakeUntil = Date().addingTimeInterval(0.6)
+        wakeUntil = Self.clock().addingTimeInterval(0.6)
         guard !wasActive else { return }
         tickGeneration += 1
         tick()
@@ -338,11 +362,12 @@ final class SyncEngine {
     // MARK: - Hardware discovery
 
     private func refreshHardware() {
+        observeBrightnessChanges()
         if framebuffer != 0 { IOObjectRelease(framebuffer) }
         framebuffer = BuiltinDisplay.framebuffer() ?? 0
         hdrFramebuffers.values.forEach { IOObjectRelease($0) }
         hdrFramebuffers = [:]
-        lastDiscovery = Date()
+        lastDiscovery = Self.clock()
         searching = true
         writer.rediscover { [weak self] found in
             guard let self else { return }
@@ -382,7 +407,7 @@ final class SyncEngine {
 
     private func readNits() -> Double? {
         guard framebuffer != 0, let id = BuiltinDisplay.displayID(), CGDisplayIsAsleep(id) == 0 else { return nil }
-        return BuiltinDisplay.nits(framebuffer)
+        return BuiltinDisplay.sdrNits(framebuffer, display: id)
     }
 
     /// Works out which monitors macOS is driving in HDR and reads back their SDR white.
@@ -420,7 +445,7 @@ final class SyncEngine {
         // Both checks ask other processes (ColorSync) or read whole tables, so they run less
         // often than the mode check: profiles change rarely (and NitSync's own installs
         // refresh this at once), and a black table is caught within a second.
-        let now = Date()
+        let now = Self.clock()
         if now.timeIntervalSince(lastProfileCheck) >= 5 { refreshProfileActive() }
         if now.timeIntervalSince(lastBlackCheck) >= 1 {
             lastBlackCheck = now
@@ -429,7 +454,7 @@ final class SyncEngine {
     }
 
     private func refreshProfileActive() {
-        lastProfileCheck = Date()
+        lastProfileCheck = Self.clock()
         profileActive = Set(Screens.monitorKeys(monitors).filter { DisplayProfiles.isInstalled($0.key) }.map(\.value))
     }
 
@@ -437,31 +462,39 @@ final class SyncEngine {
     /// It happened once after a test tool changed the HDR level and the table together and
     /// quit; reloading the display's profile fixed it. Never acts during a preview, and at
     /// most once every 10 s.
+    /// A table black for two checks in a row (1 s apart) counts, so a system fade (sleep,
+    /// lock, reconfiguration) passing through isn't mistaken for it; asleep displays are skipped.
     private func rescueBlackTables() {
-        guard colorPreview == nil, Date().timeIntervalSince(lastBlackReload) > 10 else { return }
-        for id in Screens.monitorKeys(monitors).keys {
+        guard colorPreview == nil, Self.clock().timeIntervalSince(lastBlackReload) > 10 else { blackSeen = []; return }
+        var black = Set<CGDirectDisplayID>()
+        defer { blackSeen = black }
+        for id in Screens.monitorKeys(monitors).keys where CGDisplayIsAsleep(id) == 0 {
             let capacity = CGDisplayGammaTableCapacity(id)
             var r = [CGGammaValue](repeating: 1, count: Int(capacity)), g = r, b = r
             var count: UInt32 = 0
             guard CGGetDisplayTransferByTable(id, capacity, &r, &g, &b, &count) == .success, count > 1 else { continue }
             let top = Int(count) - 1
-            if max(r[top], g[top], b[top]) < 0.05 {
-                lastBlackReload = Date()
+            guard max(r[top], g[top], b[top]) < 0.05 else { continue }
+            black.insert(id)
+            if blackSeen.contains(id) {
+                lastBlackReload = Self.clock()
                 DisplayProfiles.reload(id)
             }
         }
     }
 
     private func tick(reschedule: Bool = true) {
-        let now = Date()
+        let now = Self.clock()
         // Capped so the first frame after an idle wait doesn't count as a long step.
-        let dt = min(1.0 / 30, now.timeIntervalSince(lastTick))
+        let dt = max(0, min(1.0 / 30, now.timeIntervalSince(lastTick)))
         lastTick = now
         // Modes and HDR read-back change slowly; no need to check them every frame.
         if now.timeIntervalSince(lastModeCheck) >= 0.5 {
             lastModeCheck = now
             updateModes()
-            if enabled, !manualOverride { correctHDR(now: now) }
+            // Only while there is a reading to follow: with the built-in off or the lid closed
+            // the external keeps its brightness, and changes made in System Settings stay.
+            if enabled, !manualOverride, builtinAvailable { correctHDR(now: now) }
         }
 
         var easing = false
@@ -491,7 +524,9 @@ final class SyncEngine {
             lastUpdate = now
             onUpdate?()
         }
-        wasActive = active
+        // Only the rescheduling chain's own state: a one-off tick (`resync`) must not make
+        // `wake()` think a fast chain is running.
+        if reschedule { wasActive = active }
 
         guard reschedule else { return }
         let generation = tickGeneration

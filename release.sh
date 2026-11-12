@@ -24,16 +24,21 @@ IDENTITY="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"
 codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
 codesign --verify --strict --verbose=1 "$APP"
 
+# The upload goes in a temporary file: if notarization or stapling fails, nothing in dist/
+# looks like a finished release.
 mkdir -p dist
 rm -f "$ZIP"
-ditto -c -k --keepParent "$APP" "$ZIP"
-echo "Submitting $ZIP for notarization (profile $PROFILE)…"
-xcrun notarytool submit "$ZIP" --keychain-profile "$PROFILE" --wait
+UPLOAD="$(mktemp -d)/NitSync-$VERSION.zip"
+trap 'rm -rf "$(dirname "$UPLOAD")"' EXIT
+ditto -c -k --keepParent "$APP" "$UPLOAD"
+echo "Submitting for notarization (profile $PROFILE)…"
+xcrun notarytool submit "$UPLOAD" --keychain-profile "$PROFILE" --wait 2>&1 | tee "$(dirname "$UPLOAD")/notary.log"
+# notarytool can exit 0 with an Invalid status; require Accepted.
+grep -q "status: Accepted" "$(dirname "$UPLOAD")/notary.log" || { echo "Notarization was not accepted." >&2; exit 1; }
 
 # Staple the ticket to the app so it opens offline too, then zip the stapled app.
 xcrun stapler staple "$APP"
 xcrun stapler validate "$APP"
-rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"
 spctl -a -vv -t exec "$APP"
 echo "Built $ZIP"

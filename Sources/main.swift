@@ -43,10 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         // `--reset-color` removes all colour calibration and NitSync's display profiles, then quits.
         if CommandLine.arguments.contains("--reset-color") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-                self?.engine.resetAllColor()
-                NSApp.terminate(nil)
-            }
+            resetColorWhenReady(deadline: Date().addingTimeInterval(15))
         }
         // `--calibrate-color` does the same for colour calibration; `--calibrate-grey` also
         // starts the grey levels (for checking that screen without a keyboard).
@@ -61,6 +58,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     self?.calibration.startColorSession(level: levels[0], then: Array(levels.dropFirst()))
                 }
             }
+        }
+    }
+
+    /// `--reset-color`: once monitors are found (at least 2 s, so displays have settled), remove
+    /// every colour calibration and quit. A display that isn't connected keeps its profile entry
+    /// (it can only be put back while connected); retried until `deadline`, then reported.
+    private func resetColorWhenReady(deadline: Date, started: Date = Date()) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self else { return }
+            if (self.engine.searching || Date().timeIntervalSince(started) < 2), Date() < deadline {
+                return self.resetColorWhenReady(deadline: deadline, started: started)
+            }
+            let skipped = self.engine.resetAllColor()
+            if !skipped.isEmpty, Date() < deadline {
+                return self.resetColorWhenReady(deadline: deadline, started: .distantPast)
+            }
+            if !skipped.isEmpty {
+                NSApp.activate(ignoringOtherApps: true)
+                let alert = NSAlert()
+                alert.messageText = L("Some color profiles were left in place")
+                alert.informativeText = L("Couldn’t put back the original color profile of: %@. Make sure these displays are connected, then run this again.", skipped.joined(separator: ", "))
+                alert.runModal()
+            }
+            NSApp.terminate(nil)
         }
     }
 

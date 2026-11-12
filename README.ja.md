@@ -116,7 +116,7 @@ xcrun notarytool store-credentials NitSync --apple-id <Apple ID> --team-id <チ�
 
 ## アンインストール
 
-**ログイン時に開く** をオフにして NitSync を終了します。次にカラーキャリブレーションを削除します。各ディスプレイのプロファイルが元に戻り、NitSync のプロファイルが削除されて、アプリはそのまま終了します。
+**ログイン時に開く** をオフにして NitSync を終了します。次に、キャリブレーションしたディスプレイを接続した状態で、カラーキャリブレーションを削除します。各ディスプレイのプロファイルが元に戻り、NitSync のプロファイルが削除されて、アプリはそのまま終了します。
 
 ```bash
 open -a NitSync --args --reset-color

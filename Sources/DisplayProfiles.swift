@@ -82,15 +82,25 @@ enum DisplayProfiles {
         let fm = FileManager.default
         try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
 
-        // Remember what was there before the first install (a path, or "" for nothing).
-        var originals = UserDefaults.standard.dictionary(forKey: originalsKey) as? [String: String] ?? [:]
-        if originals[key] == nil, !isInstalled(id) {
-            originals[key] = customProfile(id)?.path ?? ""
+        // What the user has chosen, unless it's NitSync's own (a path, or "" for nothing). Taken
+        // on every install, not just the first: the user may have picked another profile in
+        // System Settings since, and that is the choice to give back on removal.
+        let previous = isInstalled(id) ? nil : customProfile(id)?.path ?? ""
+
+        // Milliseconds, so two installs in quick succession still get different names.
+        let url = folder.appendingPathComponent("\(fileStem(key))-\(Int(Date().timeIntervalSince1970 * 1000)).icc")
+        guard (try? profile.write(to: url)) != nil else { return false }
+        guard setCustom(url as CFURL, profileID: slot, on: id) else {
+            try? fm.removeItem(at: url)
+            return false
+        }
+        // Recorded only once installed: a record means "NitSync's profile went in", which
+        // `installMissingProfiles` reads as "installed before; if it's gone, the user chose so".
+        if let previous {
+            var originals = UserDefaults.standard.dictionary(forKey: originalsKey) as? [String: String] ?? [:]
+            originals[key] = previous
             UserDefaults.standard.set(originals, forKey: originalsKey)
         }
-
-        let url = folder.appendingPathComponent("\(fileStem(key))-\(Int(Date().timeIntervalSince1970)).icc")
-        guard (try? profile.write(to: url)) != nil, setCustom(url as CFURL, profileID: slot, on: id) else { return false }
         deleteFiles(of: key, except: url)
         return true
     }
@@ -107,29 +117,40 @@ enum DisplayProfiles {
     }
 
     /// Puts back the profile entry that was there before NitSync's, and deletes its files.
-    static func remove(key: String, on id: CGDirectDisplayID?) {
+    /// Needs the display: without it the entry can't be reached, so the record and files stay
+    /// (deleting them would leave the display pointing at a missing file with nothing to
+    /// restore). Returns whether it was done.
+    @discardableResult
+    static func remove(key: String, on id: CGDirectDisplayID?) -> Bool {
+        guard let id, let slot = factory(id)?.profileID else { return false }
         var originals = UserDefaults.standard.dictionary(forKey: originalsKey) as? [String: String] ?? [:]
-        if let id, let slot = factory(id)?.profileID, isInstalled(id) {
+        if isInstalled(id) {
             let original = originals[key] ?? ""
-            if original.isEmpty || !FileManager.default.fileExists(atPath: original) {
-                _ = setCustom(kCFNull!, profileID: slot, on: id)
-            } else {
-                _ = setCustom(URL(fileURLWithPath: original) as CFURL, profileID: slot, on: id)
-            }
+            let restored = original.isEmpty || !FileManager.default.fileExists(atPath: original)
+                ? setCustom(kCFNull!, profileID: slot, on: id)
+                : setCustom(URL(fileURLWithPath: original) as CFURL, profileID: slot, on: id)
+            guard restored else { return false }
         }
         originals[key] = nil
         UserDefaults.standard.set(originals, forKey: originalsKey)
         deleteFiles(of: key, except: nil)
+        return true
     }
 
     private static func fileStem(_ key: String) -> String {
         key.map { $0.isLetter || $0.isNumber || $0 == "-" ? $0 : "_" }.reduce("") { $0 + String($1) }
     }
 
+    /// This key's files: "<stem>-<digits>.icc". Matching the digits too keeps a monitor whose
+    /// key is a prefix of another's (same model, one without a serial) off the other's files.
     private static func deleteFiles(of key: String, except keep: URL?) {
         let stem = fileStem(key) + "-"
         let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
-        for file in files where file.lastPathComponent.hasPrefix(stem) && file.standardizedFileURL != keep?.standardizedFileURL {
+        for file in files where file.standardizedFileURL != keep?.standardizedFileURL {
+            let name = file.lastPathComponent
+            guard name.hasPrefix(stem), name.hasSuffix(".icc") else { continue }
+            let stamp = name.dropFirst(stem.count).dropLast(4)
+            guard !stamp.isEmpty, stamp.allSatisfy(\.isNumber) else { continue }
             try? FileManager.default.removeItem(at: file)
         }
     }

@@ -21,6 +21,13 @@ extension CalibrationOverlay {
             render()
             return
         }
+        // The built-in is the reference; without it (lid closed, panel off) there is nothing
+        // to match against.
+        guard engine.builtinAvailable, builtinPanel != nil else {
+            show(flash: L("The built-in display is off or asleep, so calibration isn’t possible."))
+            render()
+            return
+        }
         confirmClear = false
         pendingRun = nil
         sessionLevel = level
@@ -117,13 +124,17 @@ extension CalibrationOverlay {
     // MARK: - Input
 
     func handleColor(_ event: NSEvent) -> Bool {
+        // One action per press: a held arrow would answer questions the user never saw, and a
+        // held ⌫ would confirm its own "press again".
+        if event.isARepeat { return true }
         let key = event.charactersIgnoringModifiers?.lowercased()
         if event.keyCode == 53 {                                   // esc
             close()
             return true
         }
         if event.keyCode == 48 {                                   // tab
-            selectNext()
+            // Not while a primaries run or a finished run is waiting: switching would drop it.
+            if pendingRun == nil, pendingPrimary == nil, primarySession == nil { selectNext() }
             return true
         }
         if primarySession != nil || pendingPrimary != nil || primaryCheck { return handlePrimary(event) }
@@ -214,7 +225,7 @@ extension CalibrationOverlay {
                 }
                 lines.append(result + sdrNote(m))
                 let save = levelQueue.isEmpty ? L("⏎ save") : L("⏎ save and continue with %@", levelName(levelQueue[0]))
-                lines.append(save + L("  ·  R redo this run  ·  Esc quit without saving") + tab)
+                lines.append(save + L("  ·  R redo this run  ·  Esc quit without saving"))
             } else {
                 lines.append(L("Color calibration · %@", m.name))
                 if confirmClear {

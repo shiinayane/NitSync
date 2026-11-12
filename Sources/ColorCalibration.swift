@@ -155,7 +155,7 @@ struct Staircase {
     static let tail = 4
 
     init(start: Double, step: Double, minStep: Double, range: ClosedRange<Double>) {
-        value = start
+        value = min(range.upperBound, max(range.lowerBound, start))
         self.step = step
         self.minStep = minStep
         self.range = range

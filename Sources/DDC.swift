@@ -74,7 +74,21 @@ enum DDC {
             usleep(50_000)
             var buf = [UInt8](repeating: 0, count: 12)
             guard read(svc, chipAddress, dataAddress, &buf, UInt32(buf.count)) == kIOReturnSuccess else { continue }
-            // VCP reply: 0x02, result, vcp, type, maxH, maxL, curH, curL
+            // VCP reply: source 0x6E, length 0x88, then 0x02, result, vcp, type, maxH, maxL, curH,
+            // curL, and a checksum (XOR of 0x50 and everything before it). Measured on the
+            // AW2725Q: 6E 88 02 00 10 00 00 64 00 22 E2. A reply that fails the checksum is a
+            // garbled read; trusting it could fix a wrong maximum for the whole session.
+            // A reply without that framing (other monitors or adapters may differ) is still
+            // taken by its 02 00 <vcp> pattern, as before, so such a monitor isn't lost.
+            var framed = false
+            for i in 2..<(buf.count - 8) where buf[i - 2] == 0x6E && buf[i - 1] == 0x88
+                && buf[i] == 0x02 && buf[i + 1] == 0x00 && buf[i + 2] == vcp {
+                framed = true
+                if buf[(i - 2)...(i + 7)].reduce(0x50, ^) == buf[i + 8] {
+                    return (Int(buf[i + 6]) << 8 | Int(buf[i + 7]), Int(buf[i + 4]) << 8 | Int(buf[i + 5]))
+                }
+            }
+            if framed { continue }
             for i in 0..<(buf.count - 7) where buf[i] == 0x02 && buf[i + 1] == 0x00 && buf[i + 2] == vcp {
                 return (Int(buf[i + 6]) << 8 | Int(buf[i + 7]), Int(buf[i + 4]) << 8 | Int(buf[i + 5]))
             }
